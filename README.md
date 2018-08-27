@@ -90,34 +90,47 @@ rtoolsHCK_session.machine_shutdown('cl2-win10x64')
 rtoolsHCK_session.close_and_shutdown
 ```
 
-## All action methods
+### Methods
 
-* list_pools_info
-* create_pool
-* delete_pool
-* move_machine
-* set_machine_state
-* delete_machine
-* list_machine_targets
-* list_projects
-* create_project
-* delete_project
-* create_project_target
-* delete_project_target
-* list_tests
-* get_test_info
-* queue_test
-* get_test_results
-* create_project_package
-* get_machine_ip
-* shutdown
-* machine_shutdown
-* install_machine_driver_package
-* reconnect
-* connection_check
-* close_and_shutdown
-* close
-* closed?
+#### Action methods
+
+| Action | Descriptions |
+| ------ | ------------ |
+| **list_pools** | Lists the pools info. |
+| **create_pool** | Creates a pool. |
+| **delete_pool** | Deletes a pool. |
+| **move_machine** | Moves a machine from one pool to another. |
+| **set_machine_state** | Sets the state of a machine to Ready or NotReady. |
+| **delete_machine** | Deletes a machine. |
+| **list_machine_targets** | Lists the target devices of a machine that are available to be tested. |
+| **list_projects** | Lists the projects info. |
+| **create_project** | Creates a project. |
+| **delete_project** | Deletes a project. |
+| **create_project_target** | Creates a project's target. |
+| **delete_project_target** | Deletes a project's target. |
+| **list_tests** | Lists a project target's tests. |
+| **get_test_info** | Gets a project target's test info. |
+| **queue_test** | Queue's a test, use get_test_results to get the results. |
+| **update_filters** | Updates the HCK\HLK controller's filters. |
+| **apply_project_filters** | Applies the filters on a project's test results. |
+| **apply_test_result_filters** | Applies the filters on a test result. |
+| **list_test_results** | Lists a test results info. |
+| **zip_test_result_logs** | Zipps a test result's log and fetches the zip. |
+| **create_project_package** | Creates a project's package. |
+
+#### Control methods
+
+| Action | Descriptions |
+| ------ | ------------ |
+| **get_machine_ip** | Gets a machine's ip address. |
+| **shutdown** | Shuts down or restarts the studio. |
+| **machine_shutdown** | Shuts down or restarts a client machine. |
+| **install_machine_driver_package** | Installs a driver package on a client machine. |
+| **reconnect** | Tries to regain the connection to the guest machine. |
+| **connection_check** | Checks if connection is still alive. |
+| **close_and_shutdown** | Closes the instance and shuts down the studio. |
+| **close** | Closes the instance. |
+| **closed?** | Boolean methods to the instance being closed. |
 
 For more info execute this command in the git clone's directory
 ```
