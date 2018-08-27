@@ -141,7 +141,4 @@ And open doc/index.html with a browser.
 ## Authors
 
 * **Bishara AbuHattoum**
-* **Lior Haim**
-
-
 
