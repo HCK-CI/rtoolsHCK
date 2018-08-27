@@ -24,22 +24,66 @@ rake install
 ```
 ## Usage
 
-Creating a rtoolsHCK session to create a new "test" pool and list the pools info
+### Initialization options
+
+A hash that contains:
+
+| Parameter | Descriptions |
+| --------- | ------------ |
+| :addr | Controller machine's IP address<br>**(default: 127.0.0.1)**
+| :user | The user name to use in order to connect via winrm to the guest<br>**(default: Administrator)**
+| :pass | The password of the user name specified<br>**(default: PASSWORD)**
+| :winrm_ports | The clients winrm connection ports as a hash<br>(example: { 'Client' => port, ... })<br>**(default: { 'Cl1' => 4001, 'Cl2' => 4002 })**
+| :json | JSON format the output of the action methods<br>**(default: true)**
+| :timeout | The action's timeout in seconds<br>**(default: 60)**
+| :log_to_stdout | Log to STDOUT switch<br>**(default: false)**
+| :logger | The ruby logger object for logging<br>**(default: disabled)**
+| :outp_dir | The path of the directory to fetch the output files to on the local machine<br>**(default: disbaled)**
+| :script_file | The toolsHCK.ps1 file path on local machine<br>**(default: disabled)**
+
+### Examples
+
+#### Creating a rtoolsHCK session to create a new "test" pool and list the pools info
 ```
 require 'rtoolsHCK'
 
-rtoolsHCK_session = RToolsHCK::new('10.0.0.10', 'Administrator', 'password', '.')
+logger = Logger.new('./logger.log')
+
+init_opts = {
+  addr: '10.0.1.5',
+  user: 'Administrator',
+  pass: 'PASSWORD',
+  winrm_ports: { 'Cl1' => 4001, 'Cl2' => 4002 },
+  logger: logger,
+  log_to_stdout: true,
+  outp_dir: './fethced_files'
+}
+
+rtoolsHCK_session = RToolsHCK::new(init_opts)
 
 rtoolsHCK_session.create_pool('test')
 rtoolsHCK_session.list_pools
+
 rtoolsHCK_session.close
 ```
 
-Creating a rtoolsHCK session to shutdown the two clients and the controller's machines
+#### Creating a rtoolsHCK session to shutdown the two clients and the controller's machines
 ```
 require 'rtoolsHCK'
 
-rtoolsHCK_session = RToolsHCK::new('10.0.0.10', 'Administrator', 'password', '.')
+logger = Logger.new('./logger.log')
+
+init_opts = {
+  addr: '10.0.1.5',
+  user: 'Administrator',
+  pass: 'PASSWORD',
+  winrm_ports: { 'Cl1' => 4001, 'Cl2' => 4002 },
+  logger: logger,
+  log_to_stdout: true,
+  outp_dir: './fethced_files'
+}
+
+rtoolsHCK_session = RToolsHCK::new(init_opts)
 
 rtoolsHCK_session.machine_shutdown('cl1-win10x64')
 rtoolsHCK_session.machine_shutdown('cl2-win10x64')
