@@ -126,6 +126,7 @@ class RToolsHCK
     def print(string)
       string = string.gsub(/#{IAC}/no, IAC + IAC) if @options['Telnetmode']
       return write(string) if @options['Binmode']
+
       if @telnet_option['BINARY'] && @telnet_option['SGA']
         write(string.gsub(/\n/n, CR))
       else
@@ -222,6 +223,7 @@ class RToolsHCK
   def load_outp_dir(outp_dir)
     @outp_dir = nil
     return if outp_dir.nil?
+
     unless File.directory?(outp_dir)
       raise RToolsHCKError.new('initialize/outp'),
             "can't find the directory outp_dir specefied."
@@ -429,6 +431,7 @@ class RToolsHCK
 
   def handle_action_exceptions(action, &block)
     raise RToolsHCKError.new('action'), 'instance is closed.' if @closed
+
     log_action_call(action, block.binding)
     handle_exceptions { yield }
   rescue RToolsHCKActionError => e
@@ -733,6 +736,7 @@ class RToolsHCK
 
   def handle_test_results_normal(test_results, stream)
     return false unless test_results
+
     unless @outp_dir.nil?
       logs_zip_guest_path = stream.split("\n")
                                   .grep(/^Logs zipped to .*/)
@@ -747,6 +751,7 @@ class RToolsHCK
   def handle_test_results(test_results, stream)
     if @json
       return test_results if test_results['result'].eql?('Failure')
+
       handle_test_results_json(test_results)
     else
       handle_test_results_normal(test_results, stream)
@@ -840,6 +845,7 @@ class RToolsHCK
   def update_filters(l_filter)
     handle_action_exceptions(__method__) do
       raise 'Filters file not valid.' unless File.exist?(l_filter)
+
       do_upload_and_update_filter(l_filter)
       @json ? { 'result' => 'Success' } : true
     end
@@ -977,6 +983,7 @@ class RToolsHCK
 
   def handle_project_package_normal(project_package, stream)
     return false unless project_package
+
     unless @outp_dir.nil?
       puts 'HOST: Package fetched to '\
            "#{file_to_outp_dir(parse_project_package_guest_path(stream))}"
@@ -990,6 +997,7 @@ class RToolsHCK
 
     if @json
       return project_package if project_package['result'].eql?('Failure')
+
       handle_project_package_json(project_package)
     else
       handle_project_package_normal(project_package, ret_str)
@@ -1185,6 +1193,7 @@ class RToolsHCK
       unless File.exist?(File.join(l_directory, inf_file))
         raise 'Inf file not valid.'
       end
+
       do_install_machine_driver_package(machine,
                                         install_method,
                                         l_directory,
