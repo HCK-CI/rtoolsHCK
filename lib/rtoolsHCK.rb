@@ -88,10 +88,10 @@ class RToolsHCK
   # A custom Winrm powershell run error exception
   class WinrmPSRunError < RToolsHCKActionError; end
 
-  def handle_exceptions
+  def handle_exceptions(level = 'error')
     yield
   rescue StandardError => e
-    log_exception(e)
+    log_exception(e, level)
     raise e
   end
 
@@ -100,15 +100,15 @@ class RToolsHCK
              .join("\n   -- ")
   end
 
-  def log_exception(exception)
+  def log_exception(exception, level = 'debug')
     eclass = exception.class
     emessage = exception.message
     estack = get_exception_stack(exception)
     if exception.is_a?(RToolsHCKError)
       ewhere = exception.where
-      logger('error', ewhere) { "(#{eclass}) #{emessage}\n   -- #{estack}" }
+      logger(level, ewhere) { "(#{eclass}) #{emessage}\n   -- #{estack}" }
     else
-      logger('error', eclass) { "#{emessage}\n   -- #{estack}" }
+      logger(level, eclass) { "#{emessage}\n   -- #{estack}" }
     end
   end
 
@@ -433,7 +433,7 @@ class RToolsHCK
     raise RToolsHCKError.new('action'), 'instance is closed.' if @closed
 
     log_action_call(action, block.binding)
-    handle_exceptions { yield }
+    handle_exceptions('debug') { yield }
   rescue RToolsHCKActionError => e
     if @json
       { 'result' => 'Failure', 'message' => e.message }
@@ -1221,8 +1221,6 @@ class RToolsHCK
   def close_for_reconnect
     unload_toolshck
     unload_winrm_ps
-  rescue StandardError => e
-    log_exception(e)
   end
 
   def unload_winrm_ps
