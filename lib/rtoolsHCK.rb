@@ -1221,8 +1221,6 @@ class RToolsHCK
   def close_for_reconnect
     unload_toolshck
     unload_winrm_ps
-  rescue StandardError => e
-    log_exception(e)
   end
 
   def unload_winrm_ps
