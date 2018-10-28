@@ -429,17 +429,26 @@ class RToolsHCK
     logger('debug', "action/#{action}") { action_parameters.join(', ') }
   end
 
+  def action_exception_handler(exception)
+    log_exception(exception, 'debug')
+    if @json
+      { 'result' => 'Failure', 'message' => exception.message }
+    else
+      puts "WARNING: #{exception.message}"
+      false
+    end
+  end
+
   def handle_action_exceptions(action, &block)
     raise RToolsHCKError.new('action'), 'instance is closed.' if @closed
 
     log_action_call(action, block.binding)
-    handle_exceptions { yield }
-  rescue RToolsHCKActionError => e
-    if @json
-      { 'result' => 'Failure', 'message' => e.message }
-    else
-      puts "WARNING: #{e.message}"
-      false
+    handle_exceptions do
+      begin
+        yield
+      rescue RToolsHCKActionError => e
+        action_exception_handler(e)
+      end
     end
   end
 
