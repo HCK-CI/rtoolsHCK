@@ -91,7 +91,7 @@ class RToolsHCK
   def handle_exceptions
     yield
   rescue StandardError => e
-    log_exception(e)
+    log_exception(e, 'error')
     raise e
   end
 
@@ -100,15 +100,15 @@ class RToolsHCK
              .join("\n   -- ")
   end
 
-  def log_exception(exception)
+  def log_exception(exception, level)
     eclass = exception.class
     emessage = exception.message
     estack = get_exception_stack(exception)
     if exception.is_a?(RToolsHCKError)
       ewhere = exception.where
-      logger('error', ewhere) { "(#{eclass}) #{emessage}\n   -- #{estack}" }
+      logger(level, ewhere) { "(#{eclass}) #{emessage}\n   -- #{estack}" }
     else
-      logger('error', eclass) { "#{emessage}\n   -- #{estack}" }
+      logger(level, eclass) { "#{emessage}\n   -- #{estack}" }
     end
   end
 
@@ -1228,7 +1228,7 @@ class RToolsHCK
     @winrm_ps.close
     logger('debug', 'close/winrm') { 'winrm shell unloaded!' }
   rescue StandardError => e
-    log_exception(e)
+    log_exception(e, 'debug')
   end
 
   def unload_toolshck_telnet
@@ -1247,7 +1247,7 @@ class RToolsHCK
     unload_toolshck_shell
     unload_toolshck_telnet
   rescue StandardError => e
-    log_exception(e)
+    log_exception(e, 'debug')
   end
 
   def check_connection
