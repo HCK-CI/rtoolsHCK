@@ -1,6 +1,8 @@
 
 # rtoolsHCK
 
+[![CircleCI](https://circleci.com/gh/HCK-CI/rtoolsHCK.svg?style=svg)](https://circleci.com/gh/HCK-CI/rtoolsHCK)
+
 rtoolsHCK is a ruby gem tool-kit based on [toolsHCK](https://github.com/HCK-CI/toolsHCK) for managing and maintaining the HCK setup remotely.
 
 ## Getting Started
