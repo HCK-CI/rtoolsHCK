@@ -350,7 +350,7 @@ class RToolsHCK
   end
 
   # Telnet's prompt match, (regex)
-  TELNET_PROMPT_MATCH = /^.:.*>/
+  TELNET_PROMPT_MATCH = /^.:.*>/.freeze
 
   def load_toolshck_telnet
     logger('debug', 'initialize/toolsHCK') { 'loading toolsHCK telnet...' }
@@ -373,7 +373,7 @@ class RToolsHCK
   end
 
   # toolsHCK telnet shell prompt match, (regex)
-  TOOLSHCK_SHELL_PROMPT_MATCH = /^toolsHCK@.*>/
+  TOOLSHCK_SHELL_PROMPT_MATCH = /^toolsHCK@.*>/.freeze
 
   def load_toolshck_shell
     logger('debug', 'initialize/toolsHCK') { 'loading toolsHCK shell...' }
