@@ -1182,6 +1182,28 @@ class RToolsHCK
     machine_run(machine, command)
   end
 
+  def do_upload_driver_certificate_files(machine, l_cer)
+    fm = WinRM::FS::FileManager.new(machine_connection(machine))
+    r_cer = "#{fm.temp_dir}/#{SecureRandom.uuid}.cer"
+    fm.upload(l_cer, r_cer) do |cb, tb, lp, rp|
+      # TODO: Check transfer
+    end
+    r_cer
+  end
+
+  def install_certificate_command(cer_path, store)
+    "certmgr.exe -add #{cer_path} -s -r localMachine #{store}"
+  end
+
+  def do_install_machine_driver_certificate(machine, l_cer)
+    r_cer = do_upload_driver_certificate_files(machine, l_cer)
+    windows_path = r_cer.tr('/', '\\')
+    command1 = install_certificate_command(windows_path, 'root')
+    command2 = install_certificate_command(windows_path, 'trustedpublisher')
+    machine_run(machine, command1)
+    machine_run(machine, command2)
+  end
+
   public
 
   # == Description
@@ -1207,6 +1229,23 @@ class RToolsHCK
                                         install_method,
                                         l_directory,
                                         inf_file)
+      @json ? { 'result' => 'Success' } : true
+    end
+  end
+
+  # == Description
+  #
+  # Installs a driver certificate, (.cer file), on a machine.
+  #
+  # == Params:
+  #
+  # +machine+::      The name of the machine
+  # +l_cer+::        The local path of the driver certificate, (.cer file)
+  def install_machine_driver_certificate(machine, l_cer)
+    handle_action_exceptions(__method__) do
+      raise 'Cer file not valid.' unless File.exist?(l_cer)
+
+      do_install_machine_driver_certificate(machine, l_cer)
       @json ? { 'result' => 'Success' } : true
     end
   end
