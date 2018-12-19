@@ -1166,20 +1166,52 @@ class RToolsHCK
     r_directory
   end
 
+  def export_certificate_script(sys_path, cer_path)
+    [
+      '$exportType = '\
+        '[System.Security.Cryptography.X509Certificates.X509ContentType]::Cert',
+      '$cert = (Get-AuthenticodeSignature ' + sys_path + ').SignerCertificate',
+      'if ($cert -eq $null) { exit(-1) }',
+      '[System.IO.File]::WriteAllBytes(\'' + cer_path + '\', $cert'\
+        '.Export($exportType))'
+    ].join('; ')
+  end
+
+  def install_certificate_script(cer_path)
+    [
+      "certutil -enterprise -f -v -AddStore Root #{cer_path}",
+      "certutil -enterprise -f -v -AddStore TrustedPublisher #{cer_path}"
+    ].join('; ')
+  end
+
+  def install_driver_command(windows_path, install_method)
+    case install_method
+    when 'PNP'
+      "pnputil -i -a #{windows_path}"
+    when 'NON-PNP'
+      'RUNDLL32.EXE SETUPAPI.DLL,InstallHinfSection ' \
+        "DefaultInstall 128 #{windows_path}"
+    end
+  end
+
+  def install_certificate(machine, windows_path)
+    sys_path = windows_path.sub('.inf', '.sys')
+    cer_path = guest_dirname(windows_path) + "\\#{SecureRandom.uuid}.cer"
+    machine_run(machine, export_certificate_script(sys_path, cer_path))
+    machine_run(machine, install_certificate_script(cer_path))
+  rescue WinrmPSRunError
+    raise RToolsHCKActionError.new('action/install_machine_driver_package'),
+          'Installing certificate failed, maybe digital signature is missing'
+  end
+
   def do_install_machine_driver_package(machine,
                                         install_method,
                                         l_directory,
                                         inf_file)
     r_directory = do_upload_driver_package_files(machine, l_directory)
     windows_path = "#{r_directory}/#{inf_file}".tr('/', '\\')
-    command = case install_method
-              when 'PNP'
-                "pnputil -i -a #{windows_path}"
-              when 'NON-PNP'
-                'RUNDLL32.EXE SETUPAPI.DLL,InstallHinfSection ' \
-                "DefaultInstall 128 #{windows_path}"
-              end
-    machine_run(machine, command)
+    install_certificate(machine, windows_path) if install_method.eql?('PNP')
+    machine_run(machine, install_driver_command(windows_path, install_method))
   end
 
   public
