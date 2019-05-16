@@ -289,6 +289,9 @@ class RToolsHCK
               "#{run_output.stderr.empty? ? '.' : " with #{run_output.stderr}"}"
     end
     run_output.stdout
+  rescue HTTPClient::KeepAliveDisconnected
+    where = "#{machine}/winrm/run"
+    raise WinrmPSRunError.new(where), "Machine #{machine} reset connection."
   end
 
   def check_winrm_ps
@@ -1164,6 +1167,9 @@ class RToolsHCK
       # TODO: Check transfer
     end
     r_directory
+  rescue HTTPClient::KeepAliveDisconnected
+    where = "#{machine}/winrm/run"
+    raise WinrmPSRunError.new(where), "Machine #{machine} reset connection."
   end
 
   def export_certificate_script(sys_path, cer_path)
