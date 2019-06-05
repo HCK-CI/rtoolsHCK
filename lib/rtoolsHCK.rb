@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 
 require 'net/telnet'
 require 'securerandom'
@@ -114,7 +115,7 @@ class RToolsHCK
 
   def logger(level, progname = nil, &block)
     @stdout_logger.public_send(level, progname, &block) if @log_to_stdout
-    @logger.public_send(level, progname, &block) if @logger
+    @logger&.public_send(level, progname, &block)
   end
 
   # A little workaround of a net-telnet bug
