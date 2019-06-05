@@ -1159,6 +1159,24 @@ class RToolsHCK
     end
   end
 
+  # == Description
+  #
+  # Run command on a machine, (powershell).
+  #
+  # == Params:
+  #
+  # +machine+::      The name of the machine as registered with the HCK\HLK
+  #                  controller
+  # +cmd+::          The command to run as a string
+  def run_on_machine(machine, cmd)
+    handle_action_exceptions(__method__) do
+      ret = machine_run(machine, cmd)
+      return (@json ? { 'result' => 'Success' } : true) if ret.empty?
+
+      @json ? { 'result' => 'Success', 'content' => ret } : true
+    end
+  end
+
   private
 
   def do_upload_driver_package_files(machine, l_directory)
