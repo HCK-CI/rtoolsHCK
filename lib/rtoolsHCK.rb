@@ -424,7 +424,7 @@ class RToolsHCK
   def log_action_call(action, binding)
     action_parameters = method(action).parameters.map do |param|
       param_str = "#{param[1]} "
-      param_str << if param[0].equal?(:opt)
+      param_str + if param[0].equal?(:opt)
                      "is #{binding.local_variable_get(param[1]) ? 'on' : 'off'}"
                    else
                      "= #{binding.local_variable_get(param[1])}"
@@ -1028,7 +1028,7 @@ class RToolsHCK
   end
 
   def package_progress_info_factory(progress_steps)
-    json_progress_steps = JSON.parse('[' << progress_steps.join(',') << ']')
+    json_progress_steps = JSON.parse('[' + progress_steps.join(',') + ']')
     { 'stepscount' => progress_steps.size, 'steps' => json_progress_steps }
   end
 
