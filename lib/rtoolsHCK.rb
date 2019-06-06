@@ -425,10 +425,10 @@ class RToolsHCK
     action_parameters = method(action).parameters.map do |param|
       param_str = "#{param[1]} "
       param_str + if param[0].equal?(:opt)
-                     "is #{binding.local_variable_get(param[1]) ? 'on' : 'off'}"
-                   else
-                     "= #{binding.local_variable_get(param[1])}"
-                   end
+                    "is #{binding.local_variable_get(param[1]) ? 'on' : 'off'}"
+                  else
+                    "= #{binding.local_variable_get(param[1])}"
+                  end
     end
     logger('debug', "action/#{action}") { action_parameters.join(', ') }
   end
