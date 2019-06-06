@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require './lib/version'
 
 Gem::Specification.new do |s|
