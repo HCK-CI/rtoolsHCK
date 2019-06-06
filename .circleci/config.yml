@@ -19,10 +19,10 @@ jobs:
     steps:
       - checkout
       - run:
-          name: install rubocop
-          command: gem install rubocop
+          name: Bundle install
+          command: bundle check || bundle install
       - run:
-          name: rake build
+          name: Rake build
           command: rake build
 
       # run tests!
