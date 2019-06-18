@@ -195,7 +195,7 @@ class RToolsHCK
     winrm_ports: { 'Cl1' => 4001, 'Cl2' => 4002 },
     json: true,
     timeout: 60,
-    logger: false,
+    logger: nil,
     log_to_stdout: false,
     outp_dir: nil,
     script_file: nil
