@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require 'net/telnet'
+require 'socket'
 require 'securerandom'
 require 'winrm'
 require 'winrm-fs'
@@ -69,6 +69,9 @@ class RToolsHCK
 
   private
 
+  Thread.abort_on_exception = true
+  Thread.report_on_exception = false
+
   # A custom RToolsHCK error exception
   class RToolsHCKError < StandardError
     # Custom addition to the exception backtrace, (better logging)
@@ -116,27 +119,6 @@ class RToolsHCK
   def logger(level, progname = nil, &block)
     @stdout_logger.public_send(level, progname, &block) if @log_to_stdout
     @logger&.public_send(level, progname, &block)
-  end
-
-  # A little workaround of a net-telnet bug
-  #
-  class Telnet < Net::Telnet
-    #-----------------------------------------#
-    #--Changes to the existing Telnet class.--#
-    #-----------------------------------------#
-    def print(string)
-      string = string.gsub(/#{IAC}/no, IAC + IAC) if @options['Telnetmode']
-      return write(string) if @options['Binmode']
-
-      if @telnet_option['BINARY'] && @telnet_option['SGA']
-        write(string.gsub(/\n/n, CR))
-      else
-        write(string.gsub(/\n/n, EOL))
-      end
-    end
-    #-----------------------------------------#
-    #--End of changes.------------------------#
-    #-----------------------------------------#
   end
 
   public
@@ -345,59 +327,206 @@ class RToolsHCK
     logger('debug', 'initialize/toolsHCK') { 'toolsHCK deployed on guest!' }
   end
 
+  # toolsHCK server TCP socket listener's port base
+  TOOLSHCK_TCP_SOCKET_PORT_BASE = 4000
+
+  # toolsHCK server TCP socket listener's port range
+  TOOLSHCK_TCP_SOCKET_PORT_RANGE = 1000
+
+  # toolsHCK server TCP socket listener's timeout
+  TOOLSHCK_TCP_SOCKET_TIMEOUT = 60
+
   def load_toolshck
-    load_toolshck_telnet
-    load_toolshck_shell
+    load_toolshck_server
+    load_toolshck_tcp_socket
   rescue StandardError
     @winrm_ps.close
     raise
   end
 
-  # Telnet's prompt match, (regex)
-  TELNET_PROMPT_MATCH = /^.:.*>/.freeze
-
-  def load_toolshck_telnet
-    logger('debug', 'initialize/toolsHCK') { 'loading toolsHCK telnet...' }
-    @toolshck_telnet = Telnet.new('Host' => @addr,
-                                  'Prompt' => TELNET_PROMPT_MATCH,
-                                  'Timeout' => @timeout)
-    @toolshck_telnet.login(@user, @pass)
-    check_toolshck_telnet
-    logger('debug', 'initialize/toolsHCK') { 'toolsHCK telnet loaded!' }
+  def toolshck_server_job_script(tmp_rpath)
+    'Start-Job -ScriptBlock { powershell -ExecutionPolicy Bypass -File '\
+    "C:\\toolsHCK.ps1 -server -timeout #{TOOLSHCK_TCP_SOCKET_TIMEOUT} -port "\
+    "#{@toolshck_tcp_port} > #{tmp_rpath} 2>&1 }"
   end
 
-  def check_toolshck_telnet
-    if @toolshck_telnet.cmd('cd C:\\').nil?
-      raise RToolsHCKError.new('initialize/toolsHCK'),
-            'connection with guest not established.'
+  def clean_toolshck_server
+    run('$ToolsHCKJob.StopJob()')
+    run('$ToolsHCKJob | Remove-Job')
+    @toolshck_log_fetcher&.exit
+    toolshck_fetch_log if @toolshck_log_rpath
+    @toolshck_log_fetcher_winrm_ps&.close
+  end
+
+  # toolsHCK server timeout in seconds
+  TOOLSHCK_SERVER_TIMEOUT = 60
+
+  def run_toolshck_server
+    tmp_rpath = "C:\\#{Time.now.strftime('%d-%m-%Y_%H_%M_%S')}_toolsHCK.log"
+    run_thread = Thread.new do
+      run("$ToolsHCKJob = #{toolshck_server_job_script(tmp_rpath)}")
+      until run("[System.IO.File]::Exists('#{tmp_rpath}')").strip.eql?('True')
+        sleep TOOLSHCK_SERVER_TIMEOUT / 10
+      end
     end
+
+    return tmp_rpath unless run_thread.join(TOOLSHCK_SERVER_TIMEOUT).nil?
+
+    e_message = 'waiting for the toolsHCK server to run timed out'
+    raise RToolsHCKConnectionError.new('initialize/toolsHCK'), e_message
+  end
+
+  def init_toolshck_tcp_port
+    @toolshck_tcp_port = TOOLSHCK_TCP_SOCKET_PORT_BASE
+    @toolshck_tcp_port += Random.new.rand(TOOLSHCK_TCP_SOCKET_PORT_RANGE)
+  end
+
+  def load_toolshck_server
+    init_toolshck_tcp_port
+    logger('debug', 'initialize/toolsHCK') do
+      "loading toolsHCK server to listen on port #{@toolshck_tcp_port}..."
+    end
+    @toolshck_log_rpath = run_toolshck_server
+    run_toolshck_log_fetcher
+    logger('debug', 'initialize/toolsHCK') { 'toolsHCK server loaded!' }
   rescue StandardError
-    @toolshck_telnet.close
+    clean_toolshck_server
     raise
   end
 
-  # toolsHCK telnet shell prompt match, (regex)
-  TOOLSHCK_SHELL_PROMPT_MATCH = /^toolsHCK@.*>/.freeze
+  def toolshck_fetch_log_rcontent
+    run_output = @toolshck_log_fetcher_winrm_ps\
+                 .run("Get-Content #{@toolshck_log_rpath}")
+    unless run_output.exitcode.zero?
+      raise WinrmPSRunError.new('winrm/run'), "Running '#{cmd}' failed"\
+              "#{run_output.stderr.empty? ? '.' : " with #{run_output.stderr}"}"
+    end
+    run_output.stdout
+  end
 
-  def load_toolshck_shell
-    logger('debug', 'initialize/toolsHCK') { 'loading toolsHCK shell...' }
-    @toolshck_telnet.cmd(
-      'String' => 'powershell -ExecutionPolicy Bypass -File C:\\toolsHCK.ps1"',
-      'Match' => TOOLSHCK_SHELL_PROMPT_MATCH
-    )
-    logger('debug', 'initialize/toolsHCK') { 'toolsHCK shell loaded!' }
+  def toolshck_fetch_log
+    return if @outp_dir.nil?
+
+    toolshck_log_lpath = @outp_dir + "/#{guest_basename(@toolshck_log_rpath)}"
+    FileUtils.touch(toolshck_log_lpath)
+
+    rcontent = toolshck_fetch_log_rcontent
+    lcontent = File.read(toolshck_log_lpath)
+    to_append = rcontent.sub(lcontent, '')
+
+    return if to_append.empty?
+
+    File.open(toolshck_log_lpath, 'a') do |file|
+      file.print(to_append)
+    end
+  end
+
+  # toolsHCK log fetcher sleep in seconds (polling rate)
+  TOOLSHCK_LOG_FETCHER_SLEEP = 2
+
+  def run_toolshck_log_fetcher
+    @toolshck_log_fetcher_winrm_ps = @connection.shell(:powershell)
+    @toolshck_log_fetcher = Thread.new do
+      toolshck_fetch_log while sleep TOOLSHCK_LOG_FETCHER_SLEEP
+    end
+  end
+
+  def toolshck_tcp_socket_connect
+    TCPSocket.new(@addr, @toolshck_tcp_port)
+  rescue Errno::ECONNREFUSED
+    retry
+  end
+
+  def wait_for_client_acceptance
+    connect_thread = Thread.new do
+      @toolshck_tcp_socket = toolshck_tcp_socket_connect
+    end
+
+    if connect_thread.join(TOOLSHCK_TCP_SOCKET_TIMEOUT).nil?
+      e_message = 'waiting for the TCP socket client acceptance timed out'
+      raise RToolsHCKConnectionError.new('initialize/toolsHCK'), e_message
+    end
+
+    return if toolshck_tcp_socket_fetch_output.eql?('START')
+
+    e_message = 'loading toolsHCK TCP socket failed'
+    raise RToolsHCKConnectionError.new('initialize/toolsHCK'), e_message
+  end
+
+  def clean_toolshck_tcp_socket
+    return unless @toolshck_tcp_socket
+
+    unless toolshckcmd('exit').eql?('END')
+      e_message = 'closing toolsHCK TCP socket failed'
+      raise RToolsHCKConnectionError.new('close/toolsHCK'), e_message
+    end
+    @toolshck_tcp_socket.close
+  end
+
+  def load_toolshck_tcp_socket
+    logger('debug', 'initialize/toolsHCK') { 'loading toolsHCK TCP socket...' }
+    wait_for_client_acceptance
+    logger('debug', 'initialize/toolsHCK') { 'toolsHCK TCP socket loaded!' }
   rescue StandardError
-    @toolshck_telnet.close
+    clean_toolshck_server
+    clean_toolshck_tcp_socket
     raise
   end
 
-  def toolshckcmd(cmd, match = TOOLSHCK_SHELL_PROMPT_MATCH)
-    @toolshck_telnet.puts(cmd)
-    stream = @toolshck_telnet.waitfor('String' => cmd, 'Match' => match)
-    stream.split("\n")[1..stream.split("\n").size - 2].join("\n")
-  rescue Net::ReadTimeout, Errno::ECONNRESET, Errno::EPIPE => e
+  # toolsHCK server TCP socket stream's buffer size
+  TOOLSHCK_TCP_SOCKET_BUFFER_SIZE = 1024
+
+  def toolshck_tcp_socket_fetch(length)
+    output = ''
+    while output.length != length
+      until @toolshck_tcp_socket.ready?; end
+
+      read_length = TOOLSHCK_TCP_SOCKET_BUFFER_SIZE
+      if length - output.length < TOOLSHCK_TCP_SOCKET_BUFFER_SIZE
+        read_length = length - output.length
+      end
+      output += @toolshck_tcp_socket.read_nonblock(read_length)
+    end
+    output
+  end
+
+  def toolshck_tcp_socket_fetch_output
+    until @toolshck_tcp_socket.ready?; end
+
+    length = @toolshck_tcp_socket.readline.rstrip.to_i
+
+    toolshck_tcp_socket_fetch(length)
+  rescue IO::WaitReadable, Errno::ECONNRESET, EOFError, Errno::EPIPE => e
     raise RToolsHCKConnectionError.new('toolsHCK'),
           "[#{e.class}] #{e.message}", e.backtrace
+  end
+
+  def toolshck_tcp_socket_flush(flushed = '')
+    flushed += @toolshck_tcp_socket\
+               .read_nonblock(TOOLSHCK_TCP_SOCKET_BUFFER_SIZE)
+    toolshck_tcp_socket_flush(flushed)
+  rescue IO::WaitReadable, Errno::ECONNRESET, EOFError, Errno::EPIPE
+    unless flushed.empty?
+      logger('debug', 'toolshck/cmd/flush') do
+        "data flushed from TCP socket:\n#{flushed}"
+      end
+    end
+  end
+
+  def toolshckcmd(cmd, timeout = @timeout)
+    toolshck_tcp_socket_flush
+
+    @toolshck_tcp_socket.puts(cmd)
+
+    output = ''
+    fetch_output_thread = Thread.new do
+      output = toolshck_tcp_socket_fetch_output
+    end
+
+    return output unless fetch_output_thread.join(timeout).nil?
+
+    raise RToolsHCKConnectionError.new('toolsHCK'),
+          "Running '#{cmd}' on toolsHCK timed out"
   end
 
   def guest_basename(path)
@@ -533,14 +662,13 @@ class RToolsHCK
   # +pool+::         The name of the pool
   # +state+::        The state, Ready or NotReady
   # +timeout+::      The action's timeout in seconds, 60 by deafult
-  def set_machine_state(machine, pool, state, timeout = nil)
-    timeout ||= 60
+  def set_machine_state(machine, pool, state, timeout = @timeout)
     handle_action_exceptions(__method__) do
       cmd_line = ["setmachinestate '#{machine}' '#{pool}' '#{state}'"]
-      cmd_line << "-timeout #{timeout}" unless timeout.nil?
+      cmd_line << "-timeout #{timeout}"
       cmd_line << 'json' if @json
 
-      handle_return(toolshckcmd(cmd_line.join(' ')))
+      handle_return(toolshckcmd(cmd_line.join(' '), timeout))
     end
   end
 
@@ -1017,14 +1145,14 @@ class RToolsHCK
     end
   end
 
-  def package_progression_loop(current, maximum, regex_match, handler)
+  def package_progression_loop(current, maximum, handler)
     current += maximum / PROGRESSION_RATE_DIVIDER
     return current if current >= maximum
 
-    steps = toolshckcmd(current.to_s, regex_match).split("\n")
+    steps = toolshckcmd(current.to_s).split("\n")
     handler.call(package_progress_info_factory(steps))
 
-    package_progression_loop(current, maximum, regex_match, handler)
+    package_progression_loop(current, maximum, handler)
   end
 
   def package_progress_info_factory(progress_steps)
@@ -1038,31 +1166,26 @@ class RToolsHCK
     end
   end
 
-  def package_progression_first_step(cmd_line, regex_match, handler)
-    steps = toolshckcmd(cmd_line, regex_match).split("\n")
+  def package_progression_first_step(cmd_line, handler)
+    steps = toolshckcmd(cmd_line).split("\n")
     handler.call(package_progress_info_factory(steps))
     [JSON.parse(steps[-1])['current'], JSON.parse(steps[-1])['maximum']]
   end
 
   def package_progression_last_step(current, handler)
     stream = toolshckcmd(current.to_s).split("\n")
-    handler.call(package_progress_info_factory(stream[0..-2]))
+    steps = stream[0..-2]
+    handler.call(package_progress_info_factory(steps))
     stream[-1]
   end
 
-  def handle_create_project_package(cmd_line, project, handler)
-    regex_match = /^toolsHCK@.*:createprojectpackage\(#{project}\)>/
-
-    current, maximum = package_progression_first_step(cmd_line, regex_match,
-                                                      handler)
-    current = package_progression_loop(current, maximum, regex_match, handler)
+  def handle_create_project_package(cmd_line, handler)
+    current, maximum = package_progression_first_step(cmd_line, handler)
+    current = package_progression_loop(current, maximum, handler)
 
     ret_str = package_progression_last_step(current, handler)
 
     handle_project_package(ret_str)
-  rescue Net::ReadTimeout, Errno::ECONNRESET, Errno::EPIPE => e
-    raise RToolsHCKConnectionError.new('toolsHCK'),
-          "[#{e.class}] #{e.message}", e.backtrace
   end
 
   # Progression rate divider, used for the synchronization with the controller
@@ -1098,7 +1221,7 @@ class RToolsHCK
       cmd_line << 'json' if @json
 
       handler = dummy_package_progress_info_handler if handler.nil?
-      handle_create_project_package(cmd_line.join(' '), project, handler)
+      handle_create_project_package(cmd_line.join(' '), handler)
     end
   end
 
@@ -1297,21 +1420,21 @@ class RToolsHCK
     log_exception(e, 'debug')
   end
 
-  def unload_toolshck_telnet
-    logger('debug', 'close/toolsHCK') { 'unloading toolsHCK telnet...' }
-    @toolshck_telnet.close
-    logger('debug', 'close/toolsHCK') { 'toolsHCK telnet unloaded!' }
+  def unload_toolshck_tcp_socket
+    logger('debug', 'close/toolsHCK') { 'unloading toolsHCK TCP socket...' }
+    clean_toolshck_tcp_socket
+    logger('debug', 'close/toolsHCK') { 'toolsHCK TCP socket unloaded!' }
   end
 
-  def unload_toolshck_shell
-    logger('debug', 'close/toolsHCK') { 'unloading toolsHCK shell...' }
-    @toolshck_telnet.cmd('exit')
-    logger('debug', 'close/toolsHCK') { 'toolsHCK shell unloaded!' }
+  def unload_toolshck_server
+    logger('debug', 'close/toolsHCK') { 'unloading toolsHCK server...' }
+    clean_toolshck_server
+    logger('debug', 'close/toolsHCK') { 'toolsHCK server unloaded!' }
   end
 
   def unload_toolshck
-    unload_toolshck_shell
-    unload_toolshck_telnet
+    unload_toolshck_tcp_socket
+    unload_toolshck_server
   rescue StandardError => e
     log_exception(e, 'debug')
   end
