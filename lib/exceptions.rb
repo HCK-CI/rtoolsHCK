@@ -19,3 +19,9 @@ class RToolsHCKActionError < RToolsHCKError; end
 
 # A custom Winrm powershell run error exception
 class WinrmPSRunError < RToolsHCKActionError; end
+
+# A custom Server error exception
+class ServerError < RToolsHCKConnectionError; end
+
+# A custom Ether error exception
+class EtherError < RToolsHCKConnectionError; end
