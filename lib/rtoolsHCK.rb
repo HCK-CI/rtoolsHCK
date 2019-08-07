@@ -134,8 +134,10 @@ class RToolsHCK
   #   :outp_dir      - The path of the directory to fetch the output files to on
   #                    the local machine
   #                    (default: disabled)
-  #   :script_file   - The toolsHCK.ps1 file path on local machine
+  #   :l_script_file - The toolsHCK.ps1 file path on local machine
   #                    (default: disabled)
+  #   :r_script_file - The toolsHCK.ps1 file path on remote machine
+  #                    (default: C:\\toolsHCK.ps1)
   #
   def initialize(init_opts)
     init_opts = validate_init_opts(init_opts)
@@ -163,7 +165,8 @@ class RToolsHCK
     logger: nil,
     log_to_stdout: false,
     outp_dir: nil,
-    script_file: nil
+    l_script_file: nil,
+    r_script_file: 'C:\\toolsHCK.ps1'
   }.freeze
 
   def validate_init_opts(init_opts)
@@ -205,7 +208,8 @@ class RToolsHCK
     @winrm_ports = init_opts[:winrm_ports]
     @timeout = init_opts[:timeout]
     @json = init_opts[:json]
-    @script_file = init_opts[:script_file]
+    @l_script_file = init_opts[:l_script_file]
+    @r_script_file = init_opts[:r_script_file]
   end
 
   def winrm_options_factory(addr, port, user, pass)
@@ -281,7 +285,8 @@ class RToolsHCK
       port: @port,
       connection_timeout: TOOLSHCK_CONNECTION_TIMEOUT,
       outp_dir: @outp_dir,
-      l_script_file: @script_file,
+      l_script_file: @l_script_file,
+      r_script_file: @r_script_file,
       log_to_stdout: @log_to_stdout,
       logger: @logger
     }
