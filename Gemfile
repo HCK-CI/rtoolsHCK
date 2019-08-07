@@ -2,7 +2,6 @@
 
 source 'https://rubygems.org'
 
-gem 'net-telnet'
 gem 'winrm'
 gem 'winrm-fs'
 

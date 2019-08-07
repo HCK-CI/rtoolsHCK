@@ -2,7 +2,8 @@
 # frozen_string_literal: true
 
 require_relative 'exceptions'
-require 'net/telnet'
+require_relative 'server'
+require_relative 'ether'
 require 'securerandom'
 require 'winrm'
 require 'winrm-fs'
@@ -99,27 +100,6 @@ class RToolsHCK
     @logger&.public_send(level, progname, &block)
   end
 
-  # A little workaround of a net-telnet bug
-  #
-  class Telnet < Net::Telnet
-    #-----------------------------------------#
-    #--Changes to the existing Telnet class.--#
-    #-----------------------------------------#
-    def print(string)
-      string = string.gsub(/#{IAC}/no, IAC + IAC) if @options['Telnetmode']
-      return write(string) if @options['Binmode']
-
-      if @telnet_option['BINARY'] && @telnet_option['SGA']
-        write(string.gsub(/\n/n, CR))
-      else
-        write(string.gsub(/\n/n, EOL))
-      end
-    end
-    #-----------------------------------------#
-    #--End of changes.------------------------#
-    #-----------------------------------------#
-  end
-
   public
 
   # == Description
@@ -138,6 +118,8 @@ class RToolsHCK
   #                    (default: Administrator)
   #   :pass          - The password of the user name specified
   #                    (default: PASSWORD)
+  #   :port          - The port to be used for the connection
+  #                    (default: 4000)
   #   :winrm_ports   - The clients winrm connection ports as a hash
   #                    (example: { 'Client' => port, ... })
   #                    (default: { 'Cl1' => 4001, 'Cl2' => 4002 }
@@ -161,9 +143,10 @@ class RToolsHCK
     @log_to_stdout = init_opts[:log_to_stdout]
     @stdout_logger = Logger.new(STDOUT) if @log_to_stdout
     @logger = init_opts[:logger]
-    handle_exceptions do
-      do_initialize(init_opts)
-    end
+    handle_exceptions { do_initialize(init_opts) }
+  rescue StandardError
+    priv_close
+    raise
   end
 
   private
@@ -173,6 +156,7 @@ class RToolsHCK
     addr: '127.0.0.1',
     user: 'Administrator',
     pass: 'PASSWORD',
+    port: 4000,
     winrm_ports: { 'Cl1' => 4001, 'Cl2' => 4002 },
     json: true,
     timeout: 60,
@@ -197,7 +181,6 @@ class RToolsHCK
     logger('debug', 'initialize') { "#{@user}:#{@pass}@#{@addr}" }
     load_winrm_ps
     load_winrm_fs
-    check_guest_tools_hck(init_opts[:script_file])
     load_toolshck
     @closed = false
   end
@@ -218,9 +201,11 @@ class RToolsHCK
     @addr = init_opts[:addr]
     @user = init_opts[:user]
     @pass = init_opts[:pass]
+    @port = init_opts[:port]
     @winrm_ports = init_opts[:winrm_ports]
     @timeout = init_opts[:timeout]
     @json = init_opts[:json]
+    @script_file = init_opts[:script_file]
   end
 
   def winrm_options_factory(addr, port, user, pass)
@@ -235,16 +220,12 @@ class RToolsHCK
     }
   end
 
-  def do_load_winrm_ps
+  def load_winrm_ps
+    logger('debug', 'initialize/winrm') { 'loading winrm shell...' }
     options = winrm_options_factory(@addr, 5985, @user, @pass)
     @connection = WinRM::Connection.new(options)
     @winrm_ps = @connection.shell(:powershell)
-  end
-
-  def load_winrm_ps
-    logger('debug', 'initialize/winrm') { 'loading winrm shell...' }
-    do_load_winrm_ps
-    check_winrm_ps
+    run('date')
     logger('debug', 'initialize/winrm') { 'winrm shell loaded!' }
   end
 
@@ -276,13 +257,6 @@ class RToolsHCK
     raise WinrmPSRunError.new(where), "Machine #{machine} reset connection."
   end
 
-  def check_winrm_ps
-    run('date')
-  rescue StandardError
-    @winrm_ps.close
-    raise
-  end
-
   def load_winrm_fs
     logger('debug', 'initialize/winrm') do
       'creating winrm file manager instance'
@@ -291,94 +265,37 @@ class RToolsHCK
     logger('debug', 'initialize/winrm') do
       'winrm file manager instance created!'
     end
-  rescue StandardError
-    @winrm_ps.close
-    raise
   end
 
-  def do_check_guest_tools_hck(script_file)
-    if !script_file.nil? then deploy_tools_hck(script_file)
-    elsif !@winrm_fs.exists?('C:\\toolsHCK.ps1')
-      raise RToolsHCKError.new('initialize/toolsHCK'),
-            'toolsHCK.ps1 script was not found on the guest.'
-    end
-  end
-
-  def check_guest_tools_hck(script_file)
-    logger('debug', 'initialize/toolsHCK') do
-      'checking availability on guest...'
-    end
-    do_check_guest_tools_hck(script_file)
-    logger('debug', 'initialize/toolsHCK') { 'availability on guest checked!' }
-  rescue StandardError
-    @winrm_ps.close
-    raise
-  end
-
-  def deploy_tools_hck(script_file)
-    logger('debug', 'initialize/toolsHCK') { 'deploying toolsHCK on guest...' }
-    unless File.file?(script_file)
-      raise RToolsHCKError.new('initialize/toolsHCK'),
-            "can't find the script_file specified."
-    end
-    @winrm_fs.delete('C:\\toolsHCK.ps1')
-    @winrm_fs.upload(File.expand_path(script_file), 'C:\\toolsHCK.ps1')
-    logger('debug', 'initialize/toolsHCK') { 'toolsHCK deployed on guest!' }
-  end
+  # toolsHCK connection timeout in seconds
+  TOOLSHCK_CONNECTION_TIMEOUT = 60
 
   def load_toolshck
-    load_toolshck_telnet
-    load_toolshck_shell
-  rescue StandardError
-    @winrm_ps.close
-    raise
+    @toolshck_server = Server.new(toolshck_server_init_opts)
+    @toolshck_ether = Ether.new(toolshck_ether_init_opts)
   end
 
-  # Telnet's prompt match, (regex)
-  TELNET_PROMPT_MATCH = /^.:.*>/.freeze
-
-  def load_toolshck_telnet
-    logger('debug', 'initialize/toolsHCK') { 'loading toolsHCK telnet...' }
-    @toolshck_telnet = Telnet.new('Host' => @addr,
-                                  'Prompt' => TELNET_PROMPT_MATCH,
-                                  'Timeout' => @timeout)
-    @toolshck_telnet.login(@user, @pass)
-    check_toolshck_telnet
-    logger('debug', 'initialize/toolsHCK') { 'toolsHCK telnet loaded!' }
+  def toolshck_server_init_opts
+    {
+      connection: @connection,
+      port: @port,
+      connection_timeout: TOOLSHCK_CONNECTION_TIMEOUT,
+      outp_dir: @outp_dir,
+      l_script_file: @script_file,
+      log_to_stdout: @log_to_stdout,
+      logger: @logger
+    }
   end
 
-  def check_toolshck_telnet
-    if @toolshck_telnet.cmd('cd C:\\').nil?
-      raise RToolsHCKError.new('initialize/toolsHCK'),
-            'connection with guest not established.'
-    end
-  rescue StandardError
-    @toolshck_telnet.close
-    raise
-  end
-
-  # toolsHCK telnet shell prompt match, (regex)
-  TOOLSHCK_SHELL_PROMPT_MATCH = /^toolsHCK@.*>/.freeze
-
-  def load_toolshck_shell
-    logger('debug', 'initialize/toolsHCK') { 'loading toolsHCK shell...' }
-    @toolshck_telnet.cmd(
-      'String' => 'powershell -ExecutionPolicy Bypass -File C:\\toolsHCK.ps1"',
-      'Match' => TOOLSHCK_SHELL_PROMPT_MATCH
-    )
-    logger('debug', 'initialize/toolsHCK') { 'toolsHCK shell loaded!' }
-  rescue StandardError
-    @toolshck_telnet.close
-    raise
-  end
-
-  def toolshckcmd(cmd, match = TOOLSHCK_SHELL_PROMPT_MATCH)
-    @toolshck_telnet.puts(cmd)
-    stream = @toolshck_telnet.waitfor('String' => cmd, 'Match' => match)
-    stream.split("\n")[1..stream.split("\n").size - 2].join("\n")
-  rescue Net::ReadTimeout, Errno::ECONNRESET, Errno::EPIPE => e
-    raise RToolsHCKConnectionError.new('toolsHCK'),
-          "[#{e.class}] #{e.message}", e.backtrace
+  def toolshck_ether_init_opts
+    {
+      addr: @addr,
+      port: @port,
+      timeout: @timeout,
+      connection_timeout: TOOLSHCK_CONNECTION_TIMEOUT,
+      log_to_stdout: @log_to_stdout,
+      logger: @logger
+    }
   end
 
   def guest_basename(path)
@@ -450,7 +367,7 @@ class RToolsHCK
       cmd_line = ['listpools']
       cmd_line << 'json' if @json
 
-      handle_return(toolshckcmd(cmd_line.join(' ')))
+      handle_return(@toolshck_ether.cmd(cmd_line.join(' ')))
     end
   end
 
@@ -466,7 +383,7 @@ class RToolsHCK
       cmd_line = ["createpool '#{pool}'"]
       cmd_line << 'json' if @json
 
-      handle_return(toolshckcmd(cmd_line.join(' ')))
+      handle_return(@toolshck_ether.cmd(cmd_line.join(' ')))
     end
   end
 
@@ -482,7 +399,7 @@ class RToolsHCK
       cmd_line = ["deletepool '#{pool}'"]
       cmd_line << 'json' if @json
 
-      handle_return(toolshckcmd(cmd_line.join(' ')))
+      handle_return(@toolshck_ether.cmd(cmd_line.join(' ')))
     end
   end
 
@@ -500,7 +417,7 @@ class RToolsHCK
       cmd_line = ["movemachine '#{machine}' '#{from}' '#{to}'"]
       cmd_line << 'json' if @json
 
-      handle_return(toolshckcmd(cmd_line.join(' ')))
+      handle_return(@toolshck_ether.cmd(cmd_line.join(' ')))
     end
   end
 
@@ -514,14 +431,13 @@ class RToolsHCK
   # +pool+::         The name of the pool
   # +state+::        The state, Ready or NotReady
   # +timeout+::      The action's timeout in seconds, 60 by deafult
-  def set_machine_state(machine, pool, state, timeout = nil)
-    timeout ||= 60
+  def set_machine_state(machine, pool, state, timeout = @timeout)
     handle_action_exceptions(__method__) do
       cmd_line = ["setmachinestate '#{machine}' '#{pool}' '#{state}'"]
-      cmd_line << "-timeout #{timeout}" unless timeout.nil?
+      cmd_line << "-timeout #{timeout}"
       cmd_line << 'json' if @json
 
-      handle_return(toolshckcmd(cmd_line.join(' ')))
+      handle_return(@toolshck_ether.cmd(cmd_line.join(' '), timeout))
     end
   end
 
@@ -538,7 +454,7 @@ class RToolsHCK
       cmd_line = ["deletemachine '#{machine}' '#{pool}'"]
       cmd_line << 'json' if @json
 
-      handle_return(toolshckcmd(cmd_line.join(' ')))
+      handle_return(@toolshck_ether.cmd(cmd_line.join(' ')))
     end
   end
 
@@ -555,7 +471,7 @@ class RToolsHCK
       cmd_line = ["listmachinetargets '#{machine}' '#{pool}'"]
       cmd_line << 'json' if @json
 
-      handle_return(toolshckcmd(cmd_line.join(' ')))
+      handle_return(@toolshck_ether.cmd(cmd_line.join(' ')))
     end
   end
 
@@ -568,7 +484,7 @@ class RToolsHCK
       cmd_line = ['listprojects']
       cmd_line << 'json' if @json
 
-      handle_return(toolshckcmd(cmd_line.join(' ')))
+      handle_return(@toolshck_ether.cmd(cmd_line.join(' ')))
     end
   end
 
@@ -584,7 +500,7 @@ class RToolsHCK
       cmd_line = ["createproject '#{project}'"]
       cmd_line << 'json' if @json
 
-      handle_return(toolshckcmd(cmd_line.join(' ')))
+      handle_return(@toolshck_ether.cmd(cmd_line.join(' ')))
     end
   end
 
@@ -600,7 +516,7 @@ class RToolsHCK
       cmd_line = ["deleteproject '#{project}'"]
       cmd_line << 'json' if @json
 
-      handle_return(toolshckcmd(cmd_line.join(' ')))
+      handle_return(@toolshck_ether.cmd(cmd_line.join(' ')))
     end
   end
 
@@ -623,7 +539,7 @@ class RToolsHCK
       ]
       cmd_line << 'json' if @json
 
-      handle_return(toolshckcmd(cmd_line.join(' ')))
+      handle_return(@toolshck_ether.cmd(cmd_line.join(' ')))
     end
   end
 
@@ -646,7 +562,7 @@ class RToolsHCK
       ]
       cmd_line << 'json' if @json
 
-      handle_return(toolshckcmd(cmd_line.join(' ')))
+      handle_return(@toolshck_ether.cmd(cmd_line.join(' ')))
     end
   end
 
@@ -670,7 +586,7 @@ class RToolsHCK
       cmd_line << "-playlist #{r_playlist}"
     end
 
-    handle_return(toolshckcmd(cmd_line.join(' ')))
+    handle_return(@toolshck_ether.cmd(cmd_line.join(' ')))
   end
 
   public
@@ -774,7 +690,7 @@ class RToolsHCK
       ]
       cmd_line << 'json' if @json
 
-      handle_return(toolshckcmd(cmd_line.join(' ')))
+      handle_return(@toolshck_ether.cmd(cmd_line.join(' ')))
     end
   end
 
@@ -810,7 +726,7 @@ class RToolsHCK
       cmd_line << "-sup '#{sup}'" unless sup.nil?
       cmd_line << "-IPv6 '#{ipv6}'" unless ipv6.nil?
 
-      handle_return(toolshckcmd(cmd_line.join(' ')))
+      handle_return(@toolshck_ether.cmd(cmd_line.join(' ')))
     end
   end
 
@@ -857,7 +773,7 @@ class RToolsHCK
       cmd_line = ["applyprojectfilters '#{project}'"]
       cmd_line << 'json' if @json
 
-      handle_return(toolshckcmd(cmd_line.join(' ')))
+      handle_return(@toolshck_ether.cmd(cmd_line.join(' ')))
     end
   end
 
@@ -888,7 +804,7 @@ class RToolsHCK
       ]
       cmd_line << 'json' if @json
 
-      handle_return(toolshckcmd(cmd_line.join(' ')))
+      handle_return(@toolshck_ether.cmd(cmd_line.join(' ')))
     end
   end
 
@@ -912,7 +828,7 @@ class RToolsHCK
       ]
       cmd_line << 'json' if @json
 
-      handle_return(toolshckcmd(cmd_line.join(' ')))
+      handle_return(@toolshck_ether.cmd(cmd_line.join(' ')))
     end
   end
 
@@ -944,7 +860,7 @@ class RToolsHCK
       ]
       cmd_line << 'json' if @json
 
-      stream = toolshckcmd(cmd_line.join(' '))
+      stream = @toolshck_ether.cmd(cmd_line.join(' '))
       test_results = handle_return(stream)
       handle_test_results(test_results, stream)
     end
@@ -998,14 +914,14 @@ class RToolsHCK
     end
   end
 
-  def package_progression_loop(current, maximum, regex_match, handler)
+  def package_progression_loop(current, maximum, handler)
     current += maximum / PROGRESSION_RATE_DIVIDER
     return current if current >= maximum
 
-    steps = toolshckcmd(current.to_s, regex_match).split("\n")
+    steps = @toolshck_ether.cmd(current.to_s).split("\n")
     handler.call(package_progress_info_factory(steps))
 
-    package_progression_loop(current, maximum, regex_match, handler)
+    package_progression_loop(current, maximum, handler)
   end
 
   def package_progress_info_factory(progress_steps)
@@ -1019,31 +935,26 @@ class RToolsHCK
     end
   end
 
-  def package_progression_first_step(cmd_line, regex_match, handler)
-    steps = toolshckcmd(cmd_line, regex_match).split("\n")
+  def package_progression_first_step(cmd_line, handler)
+    steps = @toolshck_ether.cmd(cmd_line).split("\n")
     handler.call(package_progress_info_factory(steps))
     [JSON.parse(steps[-1])['current'], JSON.parse(steps[-1])['maximum']]
   end
 
   def package_progression_last_step(current, handler)
-    stream = toolshckcmd(current.to_s).split("\n")
-    handler.call(package_progress_info_factory(stream[0..-2]))
+    stream = @toolshck_ether.cmd(current.to_s).split("\n")
+    steps = stream[0..-2]
+    handler.call(package_progress_info_factory(steps))
     stream[-1]
   end
 
-  def handle_create_project_package(cmd_line, project, handler)
-    regex_match = /^toolsHCK@.*:createprojectpackage\(#{project}\)>/
-
-    current, maximum = package_progression_first_step(cmd_line, regex_match,
-                                                      handler)
-    current = package_progression_loop(current, maximum, regex_match, handler)
+  def handle_create_project_package(cmd_line, handler)
+    current, maximum = package_progression_first_step(cmd_line, handler)
+    current = package_progression_loop(current, maximum, handler)
 
     ret_str = package_progression_last_step(current, handler)
 
     handle_project_package(ret_str)
-  rescue Net::ReadTimeout, Errno::ECONNRESET, Errno::EPIPE => e
-    raise RToolsHCKConnectionError.new('toolsHCK'),
-          "[#{e.class}] #{e.message}", e.backtrace
   end
 
   # Progression rate divider, used for the synchronization with the controller
@@ -1079,7 +990,7 @@ class RToolsHCK
       cmd_line << 'json' if @json
 
       handler = dummy_package_progress_info_handler if handler.nil?
-      handle_create_project_package(cmd_line.join(' '), project, handler)
+      handle_create_project_package(cmd_line.join(' '), handler)
     end
   end
 
@@ -1256,7 +1167,7 @@ class RToolsHCK
   #
   def reconnect
     handle_action_exceptions(__method__) do
-      close_for_reconnect
+      priv_close
       load_winrm_ps
       load_toolshck
       @json ? { 'result' => 'Success' } : true
@@ -1265,42 +1176,40 @@ class RToolsHCK
 
   private
 
-  def close_for_reconnect
+  def priv_close
     unload_toolshck
     unload_winrm_ps
   end
 
   def unload_winrm_ps
     logger('debug', 'close/winrm') { 'unloading winrm shell...' }
-    @winrm_ps.close
+    @winrm_ps&.close
     logger('debug', 'close/winrm') { 'winrm shell unloaded!' }
   rescue StandardError => e
     log_exception(e, 'debug')
   end
 
-  def unload_toolshck_telnet
-    logger('debug', 'close/toolsHCK') { 'unloading toolsHCK telnet...' }
-    @toolshck_telnet.close
-    logger('debug', 'close/toolsHCK') { 'toolsHCK telnet unloaded!' }
+  def unload_ether
+    @toolshck_ether&.close
+  rescue StandardError => e
+    log_exception(e, 'debug')
   end
 
-  def unload_toolshck_shell
-    logger('debug', 'close/toolsHCK') { 'unloading toolsHCK shell...' }
-    @toolshck_telnet.cmd('exit')
-    logger('debug', 'close/toolsHCK') { 'toolsHCK shell unloaded!' }
+  def unload_server
+    @toolshck_server&.close
+  rescue StandardError => e
+    log_exception(e, 'debug')
   end
 
   def unload_toolshck
-    unload_toolshck_shell
-    unload_toolshck_telnet
-  rescue StandardError => e
-    log_exception(e, 'debug')
+    unload_ether
+    unload_server
   end
 
   def check_connection
     cmd_line = ['ping']
 
-    if toolshckcmd(cmd_line.join(' ')).include?('pong')
+    if @toolshck_ether.cmd(cmd_line.join(' ')).include?('pong')
       @json ? { 'result' => 'Success' } : true
     else
       raise RToolsHCKActionError.new('action/connection_check'),
@@ -1348,8 +1257,7 @@ class RToolsHCK
   #
   def close
     handle_action_exceptions(__method__) do
-      unload_toolshck
-      unload_winrm_ps
+      priv_close
       logger('debug', 'close') { 'done!' }
       @closed = true
       @json ? { 'result' => 'Success' } : true
