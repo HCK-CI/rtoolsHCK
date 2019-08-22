@@ -116,9 +116,7 @@ class Server
     log_l_path = @outp_dir + "/#{guest_basename(@log_r_path)}"
     FileUtils.touch(log_l_path)
 
-    r_content = run("Get-Content #{@log_r_path}")
-    l_content = File.read(log_l_path)
-    to_append = r_content.sub(l_content, '')
+    to_append = r_sub_l_content(log_l_path)
 
     return if to_append.empty?
 
@@ -129,6 +127,18 @@ class Server
 
   def guest_basename(path)
     path.nil? ? nil : path.split('\\').last
+  end
+
+  def r_sub_l_content(log_l_path)
+    run("$rContent = Get-Content #{@log_r_path} -ReadCount 1024")
+    return '' if run('$rContent -eq $Null').strip.eql?('True')
+
+    from = File.open(log_l_path, 'r') { |l_content| l_content.readlines.size }
+    return '' if run('$rContent.Length').strip.to_i == from
+
+    run("$rContent[#{from}..($rContent.Length-1)]")
+  ensure
+    run('[System.GC]::Collect()')
   end
 
   public
