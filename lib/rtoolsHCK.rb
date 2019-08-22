@@ -1230,7 +1230,7 @@ class RToolsHCK
   #
   def connection_check
     handle_action_exceptions(__method__) do
-      check_connection(json)
+      check_connection
     end
   rescue RToolsHCKConnectionError => e
     if @json
