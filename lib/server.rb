@@ -71,7 +71,7 @@ class Server
   def run_server
     tmp_r_path = "C:\\#{Time.now.strftime('%d-%m-%Y_%H_%M_%S')}_toolsHCK.log"
     run_thread = Thread.new do
-      run("$Job = #{job_script(tmp_r_path)}")
+      run("$Process = #{process_script(tmp_r_path)}")
       check_log_file_exist_cmd = "[System.IO.File]::Exists('#{tmp_r_path}')"
       until run(check_log_file_exist_cmd).strip.eql?('True'); end
     end
@@ -83,20 +83,18 @@ class Server
     raise ServerError.new('initialize/server'), e_message
   end
 
-  def run(cmd)
+  def run(cmd, unchecked = false)
     run_output = @winrm_ps.run(cmd)
-    unless run_output.exitcode.zero?
-      raise WinrmPSRunError.new('winrm/run'),
-            "Running '#{cmd}' failed"\
-            "#{run_output.stderr.empty? ? '.' : " with #{run_output.stderr}"}"
-    end
-    run_output.stdout
+    return run_output.stdout if unchecked || run_output.exitcode.zero?
+
+    raise WinrmPSRunError.new('winrm/run'), "Running '#{cmd}' failed"\
+      "#{run_output.stderr.empty? ? '' : " with: #{run_output.stderr}"}"
   end
 
-  def job_script(tmp_r_path)
-    'Start-Job -ScriptBlock { powershell -ExecutionPolicy Bypass -File '\
-    "#{@r_script_file} -server -timeout #{@connection_timeout} -port "\
-    "#{@port} > #{tmp_r_path} 2>&1 }"
+  def process_script(tmp_r_path)
+    'Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass", "-File '\
+    "#{@r_script_file}\", \"-server -timeout #{@connection_timeout} -port "\
+    "#{@port}\" -RedirectStandardOutput #{tmp_r_path} -PassThru -NoNewWindow"
   end
 
   # log fetcher sleep in seconds (polling rate)
@@ -133,10 +131,11 @@ class Server
 
   def close
     logger('debug', 'close/server') { 'closing server' }
-    run('$Job.StopJob()')
-    run('$Job | Remove-Job')
+    run('Stop-Process -Id $Process.Id -ErrorAction Ignore -Force', true)
+    return unless @log_r_path
+
     @log_fetcher&.exit
-    fetch_log if @log_r_path
+    fetch_log
   ensure
     logger('debug', 'close/server') { 'closed' }
     @winrm_ps&.close
