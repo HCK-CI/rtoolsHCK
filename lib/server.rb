@@ -102,7 +102,11 @@ class Server
 
   def run_log_fetcher
     @log_fetcher = Thread.new do
-      fetch_log while sleep LOG_FETCHER_SLEEP
+      while sleep LOG_FETCHER_SLEEP
+        break if @log_fetcher.thread_variable_get(:close)
+
+        fetch_log
+      end
     end
   end
 
@@ -132,9 +136,10 @@ class Server
   def close
     logger('debug', 'close/server') { 'closing server' }
     run('Stop-Process -Id $Process.Id -ErrorAction Ignore -Force', true)
-    return unless @log_r_path
+    return unless @log_r_path && @log_fetcher
 
-    @log_fetcher&.exit
+    @log_fetcher.thread_variable_set(:close, true)
+    @log_fetcher.join
     fetch_log
   ensure
     logger('debug', 'close/server') { 'closed' }
