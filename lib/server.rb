@@ -78,6 +78,7 @@ class Server
 
     return tmp_r_path unless run_thread.join(@connection_timeout).nil?
 
+    run_thread.exit
     e_message = 'waiting for the server to run timed out'
     raise ServerError.new('initialize/server'), e_message
   end

@@ -40,14 +40,15 @@ class Ether
   def wait_for_client_acceptance
     wait_thread = Thread.new do
       @ether = connect
-      unless fetch_output.eql?('START')
-        e_message = 'something went wrong, didnt receive (START)'
-        raise EtherError.new('initialize/ether'), e_message
-      end
+      wait_thread.exit if fetch_output.eql?('START')
+
+      e_message = 'something went wrong, didnt receive (START)'
+      raise EtherError.new('initialize/ether'), e_message
     end
 
     return unless wait_thread.join(@connection_timeout).nil?
 
+    wait_thread.exit
     e_message = 'waiting for the client acceptance timed out'
     raise EtherError.new('initialize/ether'), e_message
   end
@@ -115,6 +116,7 @@ class Ether
 
     return output unless fetch_output_thread.join(timeout).nil?
 
+    fetch_output_thread.exit
     raise EtherError.new('cmd/ether'), "cmd (#{cmd}) timed out"
   end
 
