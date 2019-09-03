@@ -324,8 +324,8 @@ class RToolsHCK
     end
   end
 
-  def log_action_call(action, binding)
-    action_parameters = method(action).parameters.map do |param|
+  def parse_action_parameters(action, binding)
+    method(action).parameters.map do |param|
       param_str = "#{param[1]} "
       param_str + if param[0].equal?(:opt)
                     "is #{binding.local_variable_get(param[1]) ? 'on' : 'off'}"
@@ -333,6 +333,11 @@ class RToolsHCK
                     "= #{binding.local_variable_get(param[1])}"
                   end
     end
+  end
+
+  def log_action_call(action, binding)
+    action_parameters = parse_action_parameters(action, binding)
+    action_parameters.push('no parameters') if action_parameters.empty?
     logger('debug', "action/#{action}") { action_parameters.join(', ') }
   end
 
