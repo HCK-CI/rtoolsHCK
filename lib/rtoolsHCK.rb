@@ -308,11 +308,9 @@ class RToolsHCK
   end
 
   def guest_dirname(path)
-    n_path = nil
-    unless path.nil?
-      n_path = path.split('\\').first(path.split('\\').size - 1).join('\\')
-    end
-    n_path
+    return nil if path.nil?
+
+    path.split('\\').first(path.split('\\').size - 1).join('\\')
   end
 
   def handle_return(stream)
@@ -1158,9 +1156,8 @@ class RToolsHCK
                                      l_directory,
                                      inf_file)
     handle_action_exceptions(__method__) do
-      unless File.exist?(File.join(l_directory, inf_file))
-        raise 'Inf file not valid.'
-      end
+      file = File.join(l_directory, inf_file)
+      raise 'Inf file not valid.' unless File.exist?(file)
 
       do_install_machine_driver_package(machine,
                                         install_method,

@@ -6,6 +6,7 @@ Gem::Specification.new do |s|
   s.name             = 'rtoolsHCK'
   s.version          = RToolsHCK::VERSION
   s.license          = 'BSD'
+  s.required_ruby_version = '>= 2.4.0'
 
   s.summary          = 'HCK/HLK remote management.'
   s.description      = 'rtoolsHCK: a tool-kit to manage the HCK setup remotely.'
