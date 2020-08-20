@@ -178,12 +178,20 @@ class RToolsHCK
     INIT_OPTS_DEFAULTS.merge(init_opts)
   end
 
+  def start_studio_services
+    run('Start-Service WTTServer')
+    run('Start-Service HLKsvc')
+    run('Start-Service DTMService')
+    logger('debug', 'HLK Services started successfully')
+  end
+
   def do_initialize(init_opts)
     load_outp_dir(init_opts[:outp_dir])
     load_instance_variables(init_opts)
     logger('debug', 'initialize') { "#{@user}:#{@pass}@#{@addr}" }
     load_winrm_ps
     load_winrm_fs
+    start_studio_services
     load_toolshck
     @closed = false
   end
