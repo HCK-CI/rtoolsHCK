@@ -77,10 +77,7 @@ class Ether
     while data.length != length
       until @ether.ready?; end
 
-      read_length = ETHER_BUFFER_SIZE
-      if length - data.length < ETHER_BUFFER_SIZE
-        read_length = length - data.length
-      end
+      read_length = [ETHER_BUFFER_SIZE, length - data.length].min
       data += @ether.read_nonblock(read_length)
     end
     data
@@ -126,8 +123,8 @@ class Ether
     flushed += @ether.read_nonblock(ETHER_BUFFER_SIZE)
     flush(flushed)
   rescue IO::WaitReadable, Errno::ECONNRESET, EOFError, Errno::EPIPE
-    unless flushed.empty?
-      logger('debug', 'flush/ether') { "flushed data:\n#{flushed}" }
-    end
+    return if flushed.empty?
+
+    logger('debug', 'flush/ether') { "flushed data:\n#{flushed}" }
   end
 end
