@@ -178,10 +178,13 @@ class RToolsHCK
     INIT_OPTS_DEFAULTS.merge(init_opts)
   end
 
+  def start_studio_service(service_name)
+    run('Start-Service' + service_name)
+  end
+
   def start_studio_services
-    run('Start-Service WTTServer')
-    run('Start-Service HLKsvc')
-    run('Start-Service DTMService')
+    services = %w[WTTServer HLKsvc DTMService WttChangeScheduler]
+    services.each { |service_name| start_studio_service(service_name) }
     logger('debug', 'HLK Services started successfully')
   end
 
