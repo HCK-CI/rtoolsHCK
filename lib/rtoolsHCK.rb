@@ -179,7 +179,7 @@ class RToolsHCK
   end
 
   def start_studio_service(service_name)
-    run('Start-Service' + service_name)
+    run('Start-Service ' + service_name)
   end
 
   def start_studio_services
