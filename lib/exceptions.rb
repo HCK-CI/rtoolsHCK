@@ -8,6 +8,7 @@ class RToolsHCKError < StandardError
   # Initialization of the custom exception
   def initialize(where)
     @where = where
+    super
   end
 end
 

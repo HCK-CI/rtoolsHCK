@@ -143,7 +143,7 @@ class RToolsHCK
     init_opts = validate_init_opts(init_opts)
 
     @log_to_stdout = init_opts[:log_to_stdout]
-    @stdout_logger = Logger.new(STDOUT) if @log_to_stdout
+    @stdout_logger = Logger.new($stdout) if @log_to_stdout
     @logger = init_opts[:logger]
     handle_exceptions { do_initialize(init_opts) }
   rescue StandardError
@@ -170,16 +170,17 @@ class RToolsHCK
   }.freeze
 
   def validate_init_opts(init_opts)
-    (init_opts.keys - INIT_OPTS_DEFAULTS.keys).each do |option|
+    extra_keys = (init_opts.keys - INIT_OPTS_DEFAULTS.keys)
+    unless extra_keys.empty?
       raise RToolsHCKError.new('initialize'),
-            "Undefined initialization option #{option.inspect}."
+            "Undefined initialization options: #{extra_keys.join(', ')}."
     end
 
     INIT_OPTS_DEFAULTS.merge(init_opts)
   end
 
   def start_studio_service(service_name)
-    run('Start-Service ' + service_name)
+    run("Start-Service #{service_name}")
   end
 
   def start_studio_services
@@ -944,7 +945,7 @@ class RToolsHCK
   end
 
   def package_progress_info_factory(progress_steps)
-    json_progress_steps = JSON.parse('[' + progress_steps.join(',') + ']')
+    json_progress_steps = JSON.parse("[#{progress_steps.join(',')}]")
     { 'stepscount' => progress_steps.size, 'steps' => json_progress_steps }
   end
 
@@ -1022,7 +1023,7 @@ class RToolsHCK
   # +machine+::      The name of the machine as registered with the HCK\HLK
   #                  controller
   # +ipv6+::         Get IPv6 address, :ipv6 to enable, disabled by default
-  def get_machine_ip(machine, ipv6 = false)
+  def get_machine_ip(machine, ipv6: false)
     handle_action_exceptions(__method__) do
       cmd_line = ['ping -n 1']
       cmd_line << (ipv6 ? '-6' : '-4')
@@ -1040,7 +1041,7 @@ class RToolsHCK
   #
   # +restart+::      Restarts the machine, :restart to enable, disabled by
   #                  default
-  def shutdown(restart = false)
+  def shutdown(restart: false)
     handle_action_exceptions(__method__) do
       cmd_line = ['shutdown -f -t 00']
       cmd_line << (restart ? '-r' : '-s')
@@ -1060,7 +1061,7 @@ class RToolsHCK
   #                  controller
   # +restart+::      Restarts the machine, :restart to enable, disabled by
   #                  default
-  def machine_shutdown(machine, restart = false)
+  def machine_shutdown(machine, restart: false)
     handle_action_exceptions(__method__) do
       cmd_line = ['shutdown -f -t 00']
       cmd_line << (restart ? '-r' : '-s')
@@ -1106,9 +1107,9 @@ class RToolsHCK
     [
       '$exportType = '\
         '[System.Security.Cryptography.X509Certificates.X509ContentType]::Cert',
-      '$cert = (Get-AuthenticodeSignature ' + sys_path + ').SignerCertificate',
+      "$cert = (Get-AuthenticodeSignature #{sys_path}).SignerCertificate",
       'if ($cert -eq $null) { exit(-1) }',
-      '[System.IO.File]::WriteAllBytes(\'' + cer_path + '\', $cert'\
+      "[System.IO.File]::WriteAllBytes('#{cer_path}', $cert" \
         '.Export($exportType))'
     ].join('; ')
   end
