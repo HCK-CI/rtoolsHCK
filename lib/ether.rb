@@ -7,7 +7,7 @@ require 'socket'
 class Ether
   def initialize(init_opts)
     @log_to_stdout = init_opts[:log_to_stdout]
-    @stdout_logger = Logger.new(STDOUT) if @log_to_stdout
+    @stdout_logger = Logger.new($stdout) if @log_to_stdout
     @logger = init_opts[:logger]
     load_instance_variables(init_opts)
     logger('debug', 'initialize/ether') { "to #{@addr}:#{@port}" }
@@ -90,11 +90,9 @@ class Ether
 
   def close
     logger('debug', 'close/ether') { 'closing ether' }
-    if @ether
-      unless cmd('exit', ETHER_EXIT_TIMEOUT).eql?('END')
-        e_message = 'closing failed'
-        raise EtherError.new('close/ether'), e_message
-      end
+    if @ether && !cmd('exit', ETHER_EXIT_TIMEOUT).eql?('END')
+      e_message = 'closing failed'
+      raise EtherError.new('close/ether'), e_message
     end
   ensure
     logger('debug', 'close/ether') { 'closed' }

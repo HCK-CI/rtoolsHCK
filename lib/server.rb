@@ -10,7 +10,7 @@ require 'winrm-fs'
 class Server
   def initialize(init_opts)
     @log_to_stdout = init_opts[:log_to_stdout]
-    @stdout_logger = Logger.new(STDOUT) if @log_to_stdout
+    @stdout_logger = Logger.new($stdout) if @log_to_stdout
     @logger = init_opts[:logger]
     load_instance_variables(init_opts)
     logger('debug', 'initialize/server') { "on port #{@port}" }
@@ -83,7 +83,7 @@ class Server
     raise ServerError.new('initialize/server'), e_message
   end
 
-  def run(cmd, unchecked = false)
+  def run(cmd, unchecked: false)
     run_output = @winrm_ps.run(cmd)
     return run_output.stdout if unchecked || run_output.exitcode.zero?
 
