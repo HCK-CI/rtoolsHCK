@@ -145,7 +145,7 @@ class Server
 
   def close
     logger('debug', 'close/server') { 'closing server' }
-    run('Stop-Process -Id $Process.Id -ErrorAction Ignore -Force', true)
+    run('Stop-Process -Id $Process.Id -ErrorAction Ignore -Force', unchecked: true)
     return unless @log_r_path && @log_fetcher
 
     @log_fetcher.thread_variable_set(:close, true)
