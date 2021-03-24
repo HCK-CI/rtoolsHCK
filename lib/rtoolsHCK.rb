@@ -1091,7 +1091,7 @@ class RToolsHCK
 
   private
 
-  def do_upload_driver_package_files(machine, l_directory)
+  def do_upload_to_machine(machine, l_directory)
     fm = WinRM::FS::FileManager.new(machine_connection(machine))
     r_directory = "#{fm.temp_dir}/#{SecureRandom.uuid}"
     fm.upload(l_directory, r_directory) do |cb, tb, lp, rp|
@@ -1145,7 +1145,7 @@ class RToolsHCK
                                         install_method,
                                         l_directory,
                                         inf_file)
-    r_directory = do_upload_driver_package_files(machine, l_directory)
+    r_directory = do_upload_to_machine(machine, l_directory)
     windows_path = "#{r_directory}/#{inf_file}".tr('/', '\\')
     install_certificate(machine, windows_path) if install_method.eql?('PNP')
     machine_run(machine, install_driver_command(windows_path, install_method))
