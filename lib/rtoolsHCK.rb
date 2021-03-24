@@ -1089,6 +1089,22 @@ class RToolsHCK
     end
   end
 
+  # == Description
+  #
+  # Upload directory to temp directory of the machine.
+  #
+  # == Params:
+  #
+  # +machine+::      The name of the machine as registered with the HCK\HLK
+  #                  controller
+  # +l_directory+::  The local directory which should be uploaded
+  def upload_to_machine(machine, l_directory)
+    handle_action_exceptions(__method__) do
+      r_directory = do_upload_to_machine(machine, l_directory)
+      @json ? { 'result' => 'Success', 'content' => r_directory } : r_directory
+    end
+  end
+
   private
 
   def do_upload_to_machine(machine, l_directory)
