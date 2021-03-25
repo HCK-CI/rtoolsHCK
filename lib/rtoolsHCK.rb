@@ -1137,13 +1137,38 @@ class RToolsHCK
     ].join('; ')
   end
 
-  def install_driver_command(windows_path, install_method)
+  def replace_command(cmd, replacement_list)
+    result = cmd
+    replacement_list.each do |k, v|
+      # If replacement is a String it will be substituted for the matched text.
+      # It may contain back-references to the pattern's capture groups of the form \d,
+      # where d is a group number, or \k<n>, where n is a group name.
+      # In the block form, the current match string is passed in as a parameter,
+      # and variables such as $1, $2, $`, $&, and $' will be set appropriately.
+      # The value returned by the block will be substituted for the match on each call.
+      result = result.gsub(k) { v }
+    end
+    result
+  end
+
+  def get_custom_command(r_directory, windows_path, custom_cmd)
+    replacement_list = {
+      '@driver_dir@' => r_directory,
+      '@inf_path@' => windows_path
+    }
+
+    replace_command(custom_cmd, replacement_list)
+  end
+
+  def install_driver_command(r_directory, windows_path, install_method, custom_cmd = nil)
     case install_method
     when 'PNP'
       "pnputil -i -a #{windows_path}"
     when 'NON-PNP'
       'RUNDLL32.EXE SETUPAPI.DLL,InstallHinfSection ' \
         "DefaultInstall 128 #{windows_path}"
+    when 'custom'
+      get_custom_command(r_directory, windows_path, custom_cmd)
     end
   end
 
@@ -1160,11 +1185,12 @@ class RToolsHCK
   def do_install_machine_driver_package(machine,
                                         install_method,
                                         l_directory,
-                                        inf_file)
+                                        inf_file,
+                                        custom_cmd = nil)
     r_directory = do_upload_to_machine(machine, l_directory)
     windows_path = "#{r_directory}/#{inf_file}".tr('/', '\\')
     install_certificate(machine, windows_path) if install_method.eql?('PNP')
-    machine_run(machine, install_driver_command(windows_path, install_method))
+    machine_run(machine, install_driver_command(r_directory, windows_path, install_method, custom_cmd))
   end
 
   public
@@ -1175,14 +1201,17 @@ class RToolsHCK
   #
   # == Params:
   #
-  # +machine+::      The name of the machine
-  # +l_directory+::  The local directory which has the driver package,
-  #                  (.inf file)
-  # +inf_file+::     The .inf file name
+  # +machine+::        The name of the machine
+  # +install_method+:: The method for driver installation
+  # +l_directory+::    The local directory which has the driver package,
+  #                    (.inf file)
+  # +inf_file+::       The .inf file name
+  # +custom_cmd+::     The custom command for driver installation (optional)
   def install_machine_driver_package(machine,
                                      install_method,
                                      l_directory,
-                                     inf_file)
+                                     inf_file,
+                                     custom_cmd = nil)
     handle_action_exceptions(__method__) do
       file = File.join(l_directory, inf_file)
       raise 'Inf file not valid.' unless File.exist?(file)
@@ -1190,7 +1219,8 @@ class RToolsHCK
       do_install_machine_driver_package(machine,
                                         install_method,
                                         l_directory,
-                                        inf_file)
+                                        inf_file,
+                                        custom_cmd)
       @json ? { 'result' => 'Success' } : true
     end
   end
