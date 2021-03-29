@@ -330,7 +330,7 @@ class RToolsHCK
       JSON.parse(stream)
     else
       puts(stream)
-      stream.include?('WARNING') ? false : true
+      !stream.include?('WARNING')
     end
   end
 
@@ -366,11 +366,9 @@ class RToolsHCK
 
     log_action_call(action, block.binding)
     handle_exceptions do
-      begin
-        yield
-      rescue RToolsHCKActionError => e
-        action_exception_handler(e)
-      end
+      yield
+    rescue RToolsHCKActionError => e
+      action_exception_handler(e)
     end
   end
 
@@ -1028,7 +1026,7 @@ class RToolsHCK
       cmd_line = ['ping -n 1']
       cmd_line << (ipv6 ? '-6' : '-4')
       cmd_line << machine
-      ip = run(cmd_line.join(' ')).split("\r\n")[1].split(' ')[2].slice!(1..-2)
+      ip = run(cmd_line.join(' ')).split("\r\n")[1].split[2].slice!(1..-2)
       @json ? { 'result' => 'Success', 'content' => ip } : ip
     end
   end
