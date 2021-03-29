@@ -6,7 +6,7 @@ Gem::Specification.new do |s|
   s.name             = 'rtoolsHCK'
   s.version          = RToolsHCK::VERSION
   s.license          = 'BSD'
-  s.required_ruby_version = '>= 2.4.0'
+  s.required_ruby_version = '>= 2.6.5p114'
 
   s.summary          = 'HCK/HLK remote management.'
   s.description      = 'rtoolsHCK: a tool-kit to manage the HCK setup remotely.'
@@ -21,9 +21,8 @@ Gem::Specification.new do |s|
 
   s.extra_rdoc_files = %w[README.md LICENSE]
 
-  s.add_runtime_dependency('bundler',    '~> 1.16')
-  s.add_runtime_dependency('rdoc',       '~> 4.1')
-  s.add_runtime_dependency('rubocop',    '~> 0.57')
-  s.add_runtime_dependency('winrm',      '~> 2.2')
-  s.add_runtime_dependency('winrm-fs',   '~> 1.1')
+  s.add_runtime_dependency('bundler')
+  s.add_runtime_dependency('rdoc')
+  s.add_runtime_dependency('winrm',      '= 2.3.4')
+  s.add_runtime_dependency('winrm-fs',   '= 1.3.4')
 end

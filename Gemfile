@@ -2,8 +2,10 @@
 
 source 'https://rubygems.org'
 
-gem 'winrm'
-gem 'winrm-fs'
+ruby '>= 2.6.5p114'
+
+gem 'winrm', '= 2.3.4'
+gem 'winrm-fs', '= 1.3.4'
 
 group :test, :development do
   gem 'bundler'
@@ -11,5 +13,6 @@ group :test, :development do
   gem 'rdoc'
   gem 'rspec'
   gem 'rspec_junit_formatter'
-  gem 'rubocop'
+  gem 'rubocop', '= 1.9.1'
+  gem 'rubocop-rake', '= 0.5.1'
 end
