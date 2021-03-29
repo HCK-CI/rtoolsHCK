@@ -2,13 +2,17 @@
 #
 # Check https://circleci.com/docs/2.0/language-ruby/ for more details
 #
-version: 2
+version: 2.1
+
+orbs:
+  ruby: circleci/ruby@1.0
+
 jobs:
   build:
     docker:
       # specify the version you desire here
-       - image: circleci/ruby:2.4.1-node-browsers
-      
+       - image: circleci/ruby:2.6.5-node-browsers
+
       # Specify service dependencies here if necessary
       # CircleCI maintains a library of pre-built images
       # documented at https://circleci.com/docs/2.0/circleci-images/
@@ -18,23 +22,21 @@ jobs:
 
     steps:
       - checkout
-      - run:
-          name: Bundle install
-          command: bundle check || bundle install
+      - ruby/install-deps
       - run:
           name: Rake build
-          command: rake build
+          command: bundle exec rake build
 
       # run tests!
       - run:
           name: rubocop
-          command: rake rubocop
+          command: bundle exec rake rubocop
       - run:
           name: run tests
           command: |
             mkdir /tmp/test-results
             TEST_FILES="$(circleci tests glob "spec/**/*_spec.rb" | circleci tests split --split-by=timings)"
-            
+
             bundle exec rspec --format progress \
                             --format RspecJunitFormatter \
                             --out /tmp/test-results/rspec.xml \

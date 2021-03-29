@@ -8,14 +8,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v1
-    - name: Set up Ruby 2.6
-      uses: actions/setup-ruby@v1
+    - uses: actions/checkout@v2
+    - name: Set up Ruby 2.6.5
+      uses: ruby/setup-ruby@v1
       with:
-        ruby-version: 2.6.x
-    - name: Setup dependencies
-      run: |
-        gem install bundler
-        bundle install --jobs 4 --retry 3
+        ruby-version: 2.6.5
+        bundler-cache: true
     - name: Test with rubocop
-      run: rake rubocop
+      run: bundle exec rake rubocop
