@@ -1105,6 +1105,24 @@ class RToolsHCK
 
   # == Description
   #
+  # Download file or directory from the machine to local directory.
+  # BE CAREFUL! Download speed far less than upload one.
+  #
+  # == Params:
+  #
+  # +machine+::      The name of the machine as registered with the HCK\HLK
+  #                  controller
+  # +r_directory+::  The remote file/directory which should be downloaded
+  # +l_directory+::  The local file/directory path
+  def download_from_machine(machine, r_path, l_path)
+    handle_action_exceptions(__method__) do
+      do_download_from_machine(machine, r_path, l_path)
+      @json ? { 'result' => 'Success' } : true
+    end
+  end
+
+  # == Description
+  #
   # Checks to see if the given path exists on the target machine.
   #
   # == Params:
@@ -1144,6 +1162,17 @@ class RToolsHCK
       # TODO: Check transfer
     end
     r_directory
+  rescue HTTPClient::KeepAliveDisconnected
+    where = "#{machine}/winrm/run"
+    raise WinrmPSRunError.new(where), "Machine #{machine} reset connection."
+  end
+
+  def do_download_from_machine(machine, r_path, l_path)
+    fm = WinRM::FS::FileManager.new(machine_connection(machine))
+    fm.download(r_path, l_path) do |cb, tb, lp, rp|
+      # TODO: Check transfer
+    end
+    l_path
   rescue HTTPClient::KeepAliveDisconnected
     where = "#{machine}/winrm/run"
     raise WinrmPSRunError.new(where), "Machine #{machine} reset connection."
