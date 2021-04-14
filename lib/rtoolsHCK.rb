@@ -1105,6 +1105,22 @@ class RToolsHCK
 
   # == Description
   #
+  # Checks to see if the given path exists on the target machine.
+  #
+  # == Params:
+  #
+  # +machine+::      The name of the machine as registered with the HCK\HLK
+  #                  controller
+  # +r_directory+::  The remote file/directory which should be checked
+  def exists_on_machine?(machine, r_path)
+    handle_action_exceptions(__method__) do
+      res = do_exists_on_machine?(machine, r_path)
+      @json ? { 'result' => 'Success', 'content' => res } : res
+    end
+  end
+
+  # == Description
+  #
   # Delete the given path on the target machine.
   #
   # == Params:
@@ -1128,6 +1144,14 @@ class RToolsHCK
       # TODO: Check transfer
     end
     r_directory
+  rescue HTTPClient::KeepAliveDisconnected
+    where = "#{machine}/winrm/run"
+    raise WinrmPSRunError.new(where), "Machine #{machine} reset connection."
+  end
+
+  def do_exists_on_machine?(machine, r_path)
+    fm = WinRM::FS::FileManager.new(machine_connection(machine))
+    fm.exists?(r_path)
   rescue HTTPClient::KeepAliveDisconnected
     where = "#{machine}/winrm/run"
     raise WinrmPSRunError.new(where), "Machine #{machine} reset connection."
