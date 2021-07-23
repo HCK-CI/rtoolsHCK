@@ -1259,9 +1259,10 @@ class RToolsHCK
 
     machine_run(machine, export_certificate_script(sys_path, cer_path))
     machine_run(machine, install_certificate_script(cer_path))
-  rescue WinrmPSRunError
-    raise RToolsHCKActionError.new('action/install_machine_driver_package'),
-          'Installing certificate failed, maybe digital signature is missing'
+  rescue WinrmPSRunError => e
+    raise RToolsHCKActionError.new("action/install_machine_driver_package/#{e.where}"),
+          'Installing certificate failed, maybe digital signature is missing. '\
+          "Previous exception #{e.message}"
   end
 
   def do_install_machine_driver_package(machine,
