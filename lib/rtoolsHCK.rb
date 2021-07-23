@@ -245,12 +245,20 @@ class RToolsHCK
     logger('debug', 'initialize/winrm') { 'winrm shell loaded!' }
   end
 
+  def check_run_output(run_output, where, cmd)
+    return if run_output.exitcode.zero?
+
+    error = "Running '#{cmd}' failed with exit code #{run_output.exitcode}." \
+            "#{run_output.stdout.empty? ? '' : "\n   -- stdout:\n#{run_output.stdout}"}"\
+            "#{run_output.stderr.empty? ? '' : "\n   -- stderr:\n#{run_output.stderr}"}"
+    raise WinrmPSRunError.new(where), error
+  end
+
   def run(cmd)
     run_output = @winrm_ps.run(cmd)
-    unless run_output.exitcode.zero?
-      raise WinrmPSRunError.new('winrm/run'), "Running '#{cmd}' failed"\
-              "#{run_output.stderr.empty? ? '.' : " with #{run_output.stderr}"}"
-    end
+    where = 'winrm/run'
+
+    check_run_output(run_output, where, cmd)
     run_output.stdout
   end
 
@@ -262,14 +270,11 @@ class RToolsHCK
 
   def machine_run(machine, cmd)
     run_output = machine_connection(machine).shell(:powershell).run(cmd)
-    unless run_output.exitcode.zero?
-      where = "#{machine}/winrm/run"
-      raise WinrmPSRunError.new(where), "Running '#{cmd}' failed"\
-              "#{run_output.stderr.empty? ? '.' : " with #{run_output.stderr}"}"
-    end
+    where = "#{machine}/winrm/run"
+
+    check_run_output(run_output, where, cmd)
     run_output.stdout
   rescue HTTPClient::KeepAliveDisconnected
-    where = "#{machine}/winrm/run"
     raise WinrmPSRunError.new(where), "Machine #{machine} reset connection."
   end
 
