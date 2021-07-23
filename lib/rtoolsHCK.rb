@@ -1255,6 +1255,8 @@ class RToolsHCK
   def install_certificate(machine, windows_path)
     sys_path = windows_path.sub('.inf', '.sys')
     cer_path = guest_dirname(windows_path) + "\\#{SecureRandom.uuid}.cer"
+    logger('debug', "Export and install certificate from #{sys_path}")
+
     machine_run(machine, export_certificate_script(sys_path, cer_path))
     machine_run(machine, install_certificate_script(cer_path))
   rescue WinrmPSRunError
