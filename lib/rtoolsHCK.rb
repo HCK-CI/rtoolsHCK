@@ -1252,8 +1252,12 @@ class RToolsHCK
     end
   end
 
-  def install_certificate(machine, windows_path)
-    sys_path = windows_path.sub('.inf', '.sys')
+  def install_certificate(machine, windows_path, sys_file = nil)
+    sys_path = if sys_file.nil?
+                 windows_path.sub('.inf', '.sys')
+               else
+                 "#{guest_dirname(windows_path)}\\#{sys_file}"
+               end
     cer_path = guest_dirname(windows_path) + "\\#{SecureRandom.uuid}.cer"
     logger('debug', "Export and install certificate from #{sys_path}")
 
@@ -1272,10 +1276,11 @@ class RToolsHCK
                                         options)
     custom_cmd = options[:custom_cmd]
     force_install_cert = options[:force_install_cert]
+    sys_file = options[:sys_file]
 
     r_directory = do_upload_to_machine(machine, l_directory)
     windows_path = "#{r_directory}/#{inf_file}".tr('/', '\\')
-    install_certificate(machine, windows_path) if install_method.eql?('PNP') || force_install_cert
+    install_certificate(machine, windows_path, sys_file) if install_method.eql?('PNP') || force_install_cert
     machine_run(machine, install_driver_command(r_directory, windows_path, install_method, custom_cmd))
   end
 
@@ -1298,6 +1303,7 @@ class RToolsHCK
   # +custom_cmd+::          The custom command for driver installation (optional)
   # +force_install_cert+::  Install certificate independently of driver installation
   #                         method (optional)
+  # +sys_file+::            The .sys file name for export certificate (optional)
   def install_machine_driver_package(machine,
                                      install_method,
                                      l_directory,
