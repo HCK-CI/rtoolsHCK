@@ -1269,8 +1269,10 @@ class RToolsHCK
                                         install_method,
                                         l_directory,
                                         inf_file,
-                                        custom_cmd = nil,
-                                        force_install_cert: false)
+                                        options)
+    custom_cmd = options[:custom_cmd]
+    force_install_cert = options[:force_install_cert]
+
     r_directory = do_upload_to_machine(machine, l_directory)
     windows_path = "#{r_directory}/#{inf_file}".tr('/', '\\')
     install_certificate(machine, windows_path) if install_method.eql?('PNP') || force_install_cert
@@ -1290,6 +1292,9 @@ class RToolsHCK
   # +l_directory+::         The local directory which has the driver package,
   #                         (.inf file)
   # +inf_file+::            The .inf file name
+  #
+  # == Optional params (symbols):
+  #
   # +custom_cmd+::          The custom command for driver installation (optional)
   # +force_install_cert+::  Install certificate independently of driver installation
   #                         method (optional)
@@ -1297,8 +1302,7 @@ class RToolsHCK
                                      install_method,
                                      l_directory,
                                      inf_file,
-                                     custom_cmd = nil,
-                                     force_install_cert: false)
+                                     options = {})
     handle_action_exceptions(__method__) do
       file = File.join(l_directory, inf_file)
       raise 'Inf file not valid.' unless File.exist?(file)
@@ -1307,8 +1311,7 @@ class RToolsHCK
                                         install_method,
                                         l_directory,
                                         inf_file,
-                                        custom_cmd,
-                                        force_install_cert: force_install_cert)
+                                        options)
       @json ? { 'result' => 'Success' } : true
     end
   end
