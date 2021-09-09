@@ -189,6 +189,27 @@ class RToolsHCK
     logger('debug', 'HLK Services started successfully')
   end
 
+  def start_client_service(machine, service_name)
+    machine_run(machine, "Start-Service #{service_name}")
+  end
+
+  public
+
+  # == Description
+  #
+  # Starts HLK related services at the machine.
+  #
+  # == Params:
+  #
+  # +machine+::      The name of the machine
+  def start_client_services(machine)
+    services = %w[HLKsvc]
+    services.each { |service_name| start_studio_service(machine, service_name) }
+    logger('debug', "Machine #{machine}: HLK Services started successfully")
+  end
+
+  private
+
   def do_initialize(init_opts)
     load_outp_dir(init_opts[:outp_dir])
     load_instance_variables(init_opts)
