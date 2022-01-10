@@ -204,7 +204,7 @@ class RToolsHCK
   # +machine+::      The name of the machine
   def start_client_services(machine)
     services = %w[HLKsvc]
-    services.each { |service_name| start_studio_service(machine, service_name) }
+    services.each { |service_name| start_client_service(machine, service_name) }
     logger('debug', "Machine #{machine}: HLK Services started successfully")
   end
 
