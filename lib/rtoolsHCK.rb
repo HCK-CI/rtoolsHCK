@@ -1121,10 +1121,11 @@ class RToolsHCK
   #
   # +machine+::      The name of the machine as registered with the HCK\HLK
   #                  controller
-  # +l_directory+::  The local directory which should be uploaded
-  def upload_to_machine(machine, l_directory)
+  # +l_directory+::  The local file/directory which should be uploaded
+  # +r_directory+::  The remote file/directory
+  def upload_to_machine(machine, l_directory, r_directory = nil)
     handle_action_exceptions(__method__) do
-      r_directory = do_upload_to_machine(machine, l_directory)
+      r_directory = do_upload_to_machine(machine, l_directory, r_directory)
       @json ? { 'result' => 'Success', 'content' => r_directory } : r_directory
     end
   end
@@ -1181,9 +1182,9 @@ class RToolsHCK
 
   private
 
-  def do_upload_to_machine(machine, l_directory)
+  def do_upload_to_machine(machine, l_directory, r_directory = nil)
     fm = WinRM::FS::FileManager.new(machine_connection(machine))
-    r_directory = "#{fm.temp_dir}/#{SecureRandom.uuid}"
+    r_directory ||= "#{fm.temp_dir}/#{SecureRandom.uuid}"
     fm.upload(l_directory, r_directory) do |cb, tb, lp, rp|
       # TODO: Check transfer
     end
