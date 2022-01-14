@@ -109,9 +109,15 @@ class Server
   def run_log_fetcher
     @log_fetcher = Thread.new do
       while sleep LOG_FETCHER_SLEEP
-        break if @log_fetcher.thread_variable_get(:close)
+        begin
+          break if Thread.current.thread_variable_get(:close)
+          break if Thread.current.thread_variable_get(:crash)
 
-        fetch_log
+          fetch_log
+        rescue StandardError => e
+          Thread.current.thread_variable_set(:crash, e)
+          logger('warn', 'server/run_log_fetcher') { "#{e.class}: #{e.message}" }
+        end
       end
     end
   end
@@ -151,10 +157,17 @@ class Server
 
   def close
     logger('debug', 'server/close') { 'closing server' }
+
+    @log_fetcher&.thread_variable_set(:close, true)
+
+    if @log_fetcher&.thread_variable_get(:crash)
+      logger('debug', 'server/close') { 'server was crashed, nothing to do' }
+      return
+    end
+
     run('Stop-Process -Id $Process.Id -ErrorAction Ignore -Force', unchecked: true)
     return unless @log_r_path && @log_fetcher
 
-    @log_fetcher.thread_variable_set(:close, true)
     @log_fetcher.join
     fetch_log
   ensure
