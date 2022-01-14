@@ -258,8 +258,8 @@ class RToolsHCK
 
   def load_winrm_ps
     logger('debug', 'initialize/winrm') { 'loading winrm shell...' }
-    options = winrm_options_factory(@addr, 5985, @user, @pass)
-    @connection = WinRM::Connection.new(options)
+    @connection_options = winrm_options_factory(@addr, 5985, @user, @pass)
+    @connection = WinRM::Connection.new(@connection_options)
     @winrm_ps = @connection.shell(:powershell)
     run('date')
     logger('debug', 'initialize/winrm') { 'winrm shell loaded!' }
@@ -317,7 +317,7 @@ class RToolsHCK
 
   def toolshck_server_init_opts
     {
-      connection: @connection,
+      connection_options: @connection_options,
       port: @port,
       connection_timeout: TOOLSHCK_CONNECTION_TIMEOUT,
       outp_dir: @outp_dir,
