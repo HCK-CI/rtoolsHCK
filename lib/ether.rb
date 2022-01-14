@@ -6,14 +6,13 @@ require 'socket'
 
 # ether class
 class Ether
-  def initialize(server_init_opts, init_opts)
-    @server_init_opts = server_init_opts
+  def initialize(init_opts)
     @log_to_stdout = init_opts[:log_to_stdout]
     @stdout_logger = Logger.new($stdout) if @log_to_stdout
     @logger = init_opts[:logger]
     load_instance_variables(init_opts)
     load_server
-    logger('debug', 'ether/initialize') { "to #{@addr}:#{@port}" }
+    logger('debug', 'ether/initialize') { "to #{@server_addr}:#{@server_port}" }
     load_ether
   rescue StandardError
     close
@@ -45,15 +44,32 @@ class Ether
   end
 
   def load_instance_variables(init_opts)
-    @addr = init_opts[:addr]
-    @port = init_opts[:port]
-    @timeout = init_opts[:timeout]
+    @winrm_connection_options = init_opts[:winrm_connection_options]
+    @server_addr = init_opts[:server_addr]
+    @server_port = init_opts[:server_port]
+    @outp_dir = init_opts[:outp_dir]
+    @operation_timeout = init_opts[:operation_timeout]
     @connection_timeout = init_opts[:connection_timeout]
+    @l_script_file = init_opts[:l_script_file]
+    @r_script_file = init_opts[:r_script_file]
+  end
+
+  def server_init_opts
+    {
+      winrm_connection_options: @winrm_connection_options,
+      server_port: @server_port,
+      connection_timeout: @connection_timeout,
+      outp_dir: @outp_dir,
+      l_script_file: @l_script_file,
+      r_script_file: @r_script_file,
+      log_to_stdout: @log_to_stdout,
+      logger: @logger
+    }
   end
 
   def load_server
     logger('debug', 'ether/initialize') { "server #{@toolshck_server.nil? ? 'is not' : 'already'} initialized" }
-    @toolshck_server ||= Server.new(@server_init_opts)
+    @toolshck_server ||= Server.new(server_init_opts)
     @toolshck_server.run_server
   end
 
@@ -77,7 +93,7 @@ class Ether
 
   def connect
     Timeout.timeout(@connection_timeout) do
-      TCPSocket.new(@addr, @port)
+      TCPSocket.new(@server_addr, @server_port)
     rescue Errno::ECONNREFUSED
       sleep(1)
       retry
@@ -133,7 +149,7 @@ class Ether
     unload_server
   end
 
-  def cmd(cmd, timeout = @timeout)
+  def cmd(cmd, timeout = @operation_timeout)
     flush
 
     @ether.puts(cmd)

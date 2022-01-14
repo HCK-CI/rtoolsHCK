@@ -13,13 +13,13 @@ class Server
     @stdout_logger = Logger.new($stdout) if @log_to_stdout
     @logger = init_opts[:logger]
     load_instance_variables(init_opts)
-    logger('debug', 'server/initialize') { "on port #{@port}" }
+    logger('debug', 'server/initialize') { "on port #{@server_port}" }
   end
 
   def run_server
-    logger('debug', 'server/run_server') { "on port #{@port}" }
+    logger('debug', 'server/run_server') { "on port #{@server_port}" }
 
-    connection = WinRM::Connection.new(@connection_options)
+    connection = WinRM::Connection.new(@winrm_connection_options)
 
     @winrm_ps = connection.shell(:powershell)
     @winrm_fs = WinRM::FS::FileManager.new(connection)
@@ -36,8 +36,8 @@ class Server
   end
 
   def load_instance_variables(init_opts)
-    @connection_options = init_opts[:connection_options]
-    @port = init_opts[:port]
+    @winrm_connection_options = init_opts[:winrm_connection_options]
+    @server_port = init_opts[:server_port]
     @connection_timeout = init_opts[:connection_timeout]
     @outp_dir = init_opts[:outp_dir]
     @l_script_file = init_opts[:l_script_file]
@@ -67,7 +67,7 @@ class Server
 
   def load_toolshck_server
     logger('debug', 'server/initialize') do
-      "loading server to listen on port #{@port}"
+      "loading server to listen on port #{@server_port}"
     end
     @log_r_path = remote_run_server
     run_log_fetcher
@@ -100,7 +100,7 @@ class Server
   def process_script(tmp_r_path)
     'Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass", "-File '\
     "#{@r_script_file}\", \"-server -timeout #{@connection_timeout} -port "\
-    "#{@port}\" -RedirectStandardOutput #{tmp_r_path} -PassThru -NoNewWindow"
+    "#{@server_port}\" -RedirectStandardOutput #{tmp_r_path} -PassThru -NoNewWindow"
   end
 
   # log fetcher sleep in seconds (polling rate)

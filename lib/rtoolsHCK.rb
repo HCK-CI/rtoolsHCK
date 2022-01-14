@@ -312,28 +312,19 @@ class RToolsHCK
   TOOLSHCK_CONNECTION_TIMEOUT = 60
 
   def load_toolshck
-    @toolshck_ether = Ether.new(toolshck_server_init_opts, toolshck_ether_init_opts)
-  end
-
-  def toolshck_server_init_opts
-    {
-      connection_options: @connection_options,
-      port: @port,
-      connection_timeout: TOOLSHCK_CONNECTION_TIMEOUT,
-      outp_dir: @outp_dir,
-      l_script_file: @l_script_file,
-      r_script_file: @r_script_file,
-      log_to_stdout: @log_to_stdout,
-      logger: @logger
-    }
+    @toolshck_ether = Ether.new(toolshck_ether_init_opts)
   end
 
   def toolshck_ether_init_opts
     {
-      addr: @addr,
-      port: @port,
-      timeout: @timeout,
+      winrm_connection_options: @connection_options,
+      server_addr: @addr,
+      server_port: @port,
+      operation_timeout: @timeout,
       connection_timeout: TOOLSHCK_CONNECTION_TIMEOUT,
+      outp_dir: @outp_dir,
+      l_script_file: @l_script_file,
+      r_script_file: @r_script_file,
       log_to_stdout: @log_to_stdout,
       logger: @logger
     }
