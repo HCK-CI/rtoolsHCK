@@ -42,7 +42,7 @@ class Ether
       @ether = connect
       wait_thread.exit if fetch_output.eql?('START')
 
-      e_message = 'something went wrong, didnt receive (START)'
+      e_message = 'something went wrong, didn\'t receive (START)'
       raise EtherError.new('initialize/ether'), e_message
     end
 
