@@ -13,7 +13,7 @@ class Ether
     @logger = init_opts[:logger]
     load_instance_variables(init_opts)
     load_server
-    logger('debug', 'initialize/ether') { "to #{@addr}:#{@port}" }
+    logger('debug', 'ether/initialize') { "to #{@addr}:#{@port}" }
     load_ether
   rescue StandardError
     close
@@ -58,9 +58,9 @@ class Ether
   end
 
   def load_ether
-    logger('debug', 'initialize/ether') { 'waiting for client acceptance' }
+    logger('debug', 'ether/initialize') { 'waiting for client acceptance' }
     wait_for_client_acceptance
-    logger('debug', 'initialize/ether') { 'connected' }
+    logger('debug', 'ether/initialize') { 'connected' }
   end
 
   def wait_for_client_acceptance
@@ -68,11 +68,11 @@ class Ether
 
     unless fetch_output_with_timeout(@connection_timeout).eql?('START')
       e_message = 'something went wrong, didn\'t receive (START)'
-      raise EtherError.new('initialize/ether'), e_message
+      raise EtherError.new('ether/initialize'), e_message
     end
   rescue Timeout::Error
     e_message = 'waiting for the client acceptance timed out'
-    raise EtherError.new('initialize/ether'), e_message
+    raise EtherError.new('ether/initialize'), e_message
   end
 
   def connect
@@ -119,13 +119,13 @@ class Ether
   public
 
   def close
-    logger('debug', 'close/ether') { 'closing ether' }
+    logger('debug', 'ether/close') { 'closing ether' }
     if @ether && !cmd('exit', ETHER_EXIT_TIMEOUT).eql?('END')
       e_message = 'closing failed'
-      raise EtherError.new('close/ether'), e_message
+      raise EtherError.new('ether/close'), e_message
     end
   ensure
-    logger('debug', 'close/ether') { 'closed' }
+    logger('debug', 'ether/close') { 'closed' }
     @ether&.close
     unload_server
   end
@@ -148,6 +148,6 @@ class Ether
   rescue IO::WaitReadable, Errno::ECONNRESET, EOFError, Errno::EPIPE
     return if flushed.empty?
 
-    logger('debug', 'flush/ether') { "flushed data:\n#{flushed}" }
+    logger('debug', 'ether/flush') { "flushed data:\n#{flushed}" }
   end
 end
