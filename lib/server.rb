@@ -70,12 +70,12 @@ class Server
     logger('debug', 'server/initialize') do
       "loading server to listen on port #{@port}"
     end
-    @log_r_path = run_server
+    @log_r_path = remote_run_server
     run_log_fetcher
     logger('debug', 'server/initialize') { 'loaded' }
   end
 
-  def run_server
+  def remote_run_server
     tmp_r_path = "C:\\#{Time.now.strftime('%d-%m-%Y_%H_%M_%S')}_toolsHCK.log"
     run_thread = Thread.new do
       run("$Process = #{process_script(tmp_r_path)}")
