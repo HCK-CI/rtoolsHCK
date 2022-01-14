@@ -76,15 +76,15 @@ class Server
 
   def remote_run_server
     tmp_r_path = "C:\\#{Time.now.strftime('%d-%m-%Y_%H_%M_%S')}_toolsHCK.log"
-    run_thread = Thread.new do
+
+    Timeout.timeout(@connection_timeout) do
       run("$Process = #{process_script(tmp_r_path)}")
       check_log_file_exist_cmd = "[System.IO.File]::Exists('#{tmp_r_path}')"
       until run(check_log_file_exist_cmd).strip.eql?('True'); end
     end
 
-    return tmp_r_path unless run_thread.join(@connection_timeout).nil?
-
-    run_thread.exit
+    tmp_r_path
+  rescue Timeout::Error
     e_message = 'waiting for the server to run timed out'
     raise ServerError.new('server/initialize'), e_message
   end
