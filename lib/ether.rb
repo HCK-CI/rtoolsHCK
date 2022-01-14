@@ -149,9 +149,9 @@ class Ether
 
   private
 
-  def flush(flushed = '')
-    flushed += @ether.read_nonblock(ETHER_BUFFER_SIZE)
-    flush(flushed)
+  def flush
+    flushed = ''
+    loop { flushed += @ether.read_nonblock(ETHER_BUFFER_SIZE) }
   rescue IO::WaitReadable, Errno::ECONNRESET, EOFError, Errno::EPIPE
     return if flushed.empty?
 
