@@ -63,17 +63,13 @@ class Ether
   end
 
   def wait_for_client_acceptance
-    wait_thread = Thread.new do
-      @ether = connect
-      wait_thread.exit if fetch_output.eql?('START')
+    @ether = connect
 
+    unless fetch_output_with_timeout(@connection_timeout).eql?('START')
       e_message = 'something went wrong, didn\'t receive (START)'
       raise EtherError.new('initialize/ether'), e_message
     end
-
-    return unless wait_thread.join(@connection_timeout).nil?
-
-    wait_thread.exit
+  rescue Timeout::Error
     e_message = 'waiting for the client acceptance timed out'
     raise EtherError.new('initialize/ether'), e_message
   end
@@ -84,12 +80,14 @@ class Ether
     retry
   end
 
-  def fetch_output
-    until @ether.ready?; end
+  def fetch_output_with_timeout(timeout)
+    Timeout.timeout(timeout) do
+      until @ether.ready?; end
 
-    length = @ether.readline.rstrip.to_i
+      length = @ether.readline.rstrip.to_i
 
-    fetch(length)
+      fetch(length)
+    end
   rescue IO::WaitReadable, Errno::ECONNRESET, EOFError, Errno::EPIPE => e
     raise EtherError.new('ether'), "[#{e.class}] #{e.message}", e.backtrace
   end
@@ -136,14 +134,8 @@ class Ether
 
     @ether.puts(cmd)
 
-    output = ''
-    fetch_output_thread = Thread.new do
-      output = fetch_output
-    end
-
-    return output unless fetch_output_thread.join(timeout).nil?
-
-    fetch_output_thread.exit
+    fetch_output_with_timeout(timeout)
+  rescue Timeout::Error
     raise EtherError.new('cmd/ether'), "cmd (#{cmd}) timed out"
   end
 
