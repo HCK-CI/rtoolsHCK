@@ -78,6 +78,7 @@ class Ether
   def connect
     TCPSocket.new(@addr, @port)
   rescue Errno::ECONNREFUSED
+    sleep(1)
     retry
   end
 
