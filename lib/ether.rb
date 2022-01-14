@@ -52,8 +52,9 @@ class Ether
   end
 
   def load_server
-    logger('debug', 'initialize/ether') { 'server is not running' } if @toolshck_server.nil?
+    logger('debug', 'ether/initialize') { "server #{@toolshck_server.nil? ? 'is not' : 'already'} initialized" }
     @toolshck_server ||= Server.new(@server_init_opts)
+    @toolshck_server.run_server
   end
 
   def load_ether
