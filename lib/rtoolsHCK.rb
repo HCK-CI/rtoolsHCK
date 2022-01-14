@@ -2,7 +2,6 @@
 # frozen_string_literal: true
 
 require_relative 'exceptions'
-require_relative 'server'
 require_relative 'ether'
 require 'securerandom'
 require 'winrm'
@@ -313,8 +312,7 @@ class RToolsHCK
   TOOLSHCK_CONNECTION_TIMEOUT = 60
 
   def load_toolshck
-    @toolshck_server = Server.new(toolshck_server_init_opts)
-    @toolshck_ether = Ether.new(toolshck_ether_init_opts)
+    @toolshck_ether = Ether.new(toolshck_server_init_opts, toolshck_ether_init_opts)
   end
 
   def toolshck_server_init_opts
@@ -1379,15 +1377,8 @@ class RToolsHCK
     log_exception(e, 'debug')
   end
 
-  def unload_server
-    @toolshck_server&.close
-  rescue StandardError => e
-    log_exception(e, 'debug')
-  end
-
   def unload_toolshck
     unload_ether
-    unload_server
   end
 
   def check_connection
