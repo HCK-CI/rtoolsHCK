@@ -76,10 +76,12 @@ class Ether
   end
 
   def connect
-    TCPSocket.new(@addr, @port)
-  rescue Errno::ECONNREFUSED
-    sleep(1)
-    retry
+    Timeout.timeout(@connection_timeout) do
+      TCPSocket.new(@addr, @port)
+    rescue Errno::ECONNREFUSED
+      sleep(1)
+      retry
+    end
   end
 
   def fetch_output_with_timeout(timeout)
