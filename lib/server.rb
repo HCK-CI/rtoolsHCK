@@ -13,7 +13,7 @@ class Server
     @stdout_logger = Logger.new($stdout) if @log_to_stdout
     @logger = init_opts[:logger]
     load_instance_variables(init_opts)
-    logger('debug', 'initialize/server') { "on port #{@port}" }
+    logger('debug', 'server/initialize') { "on port #{@port}" }
     check_script_file
     load_toolshck_server
   rescue StandardError
@@ -39,33 +39,33 @@ class Server
   end
 
   def check_script_file
-    logger('debug', 'initialize/server') { 'checking sctipt file on remote' }
+    logger('debug', 'server/initialize') { 'checking sctipt file on remote' }
     if !@l_script_file.nil? then deploy_script_file
     elsif !@winrm_fs.exists?(@r_script_file)
-      raise ServerError.new('initialize/server'),
+      raise ServerError.new('server/initialize'),
             'toolsHCK.ps1 script was not found on remote.'
     end
-    logger('debug', 'initialize/server') { 'checked' }
+    logger('debug', 'server/initialize') { 'checked' }
   end
 
   def deploy_script_file
-    logger('debug', 'initialize/server') { 'deploying script file on remote' }
+    logger('debug', 'server/initialize') { 'deploying script file on remote' }
     unless File.file?(@l_script_file)
-      raise ServerError.new('initialize/server'),
+      raise ServerError.new('server/initialize'),
             "can't find the l_script_file specified."
     end
     @winrm_fs.delete(@r_script_file)
     @winrm_fs.upload(File.expand_path(@l_script_file), @r_script_file)
-    logger('debug', 'initialize/server') { 'deployed' }
+    logger('debug', 'server/initialize') { 'deployed' }
   end
 
   def load_toolshck_server
-    logger('debug', 'initialize/server') do
+    logger('debug', 'server/initialize') do
       "loading server to listen on port #{@port}"
     end
     @log_r_path = run_server
     run_log_fetcher
-    logger('debug', 'initialize/server') { 'loaded' }
+    logger('debug', 'server/initialize') { 'loaded' }
   end
 
   def run_server
@@ -80,7 +80,7 @@ class Server
 
     run_thread.exit
     e_message = 'waiting for the server to run timed out'
-    raise ServerError.new('initialize/server'), e_message
+    raise ServerError.new('server/initialize'), e_message
   end
 
   def run(cmd, unchecked: false)
@@ -144,7 +144,7 @@ class Server
   public
 
   def close
-    logger('debug', 'close/server') { 'closing server' }
+    logger('debug', 'server/close') { 'closing server' }
     run('Stop-Process -Id $Process.Id -ErrorAction Ignore -Force', unchecked: true)
     return unless @log_r_path && @log_fetcher
 
@@ -152,7 +152,7 @@ class Server
     @log_fetcher.join
     fetch_log
   ensure
-    logger('debug', 'close/server') { 'closed' }
+    logger('debug', 'server/close') { 'closed' }
     @winrm_ps&.close
   end
 end
