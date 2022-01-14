@@ -14,11 +14,19 @@ class Server
     @logger = init_opts[:logger]
     load_instance_variables(init_opts)
     logger('debug', 'server/initialize') { "on port #{@port}" }
+    connect
     check_script_file
     load_toolshck_server
   rescue StandardError
     close
     raise
+  end
+
+  def connect
+    connection = WinRM::Connection.new(@connection_options)
+
+    @winrm_ps = connection.shell(:powershell)
+    @winrm_fs = WinRM::FS::FileManager.new(connection)
   end
 
   private
@@ -29,8 +37,7 @@ class Server
   end
 
   def load_instance_variables(init_opts)
-    @winrm_ps = init_opts[:connection].shell(:powershell)
-    @winrm_fs = WinRM::FS::FileManager.new(init_opts[:connection])
+    @connection_options = init_opts[:connection_options]
     @port = init_opts[:port]
     @connection_timeout = init_opts[:connection_timeout]
     @outp_dir = init_opts[:outp_dir]
