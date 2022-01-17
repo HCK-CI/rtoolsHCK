@@ -86,7 +86,7 @@ class Ether
       e_message = 'something went wrong, didn\'t receive (START)'
       raise EtherError.new('ether/initialize'), e_message
     end
-  rescue Timeout::Error
+  rescue StandardError
     e_message = 'waiting for the client acceptance timed out'
     raise EtherError.new('ether/initialize'), e_message
   end
