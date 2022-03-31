@@ -129,7 +129,7 @@ class Ether
   def unload_server
     @toolshck_server&.close
   rescue StandardError => e
-    log_exception(e, 'debug')
+    log_exception(e, 'warn')
   end
 
   # ether exit timeout
