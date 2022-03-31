@@ -77,6 +77,7 @@ class Ether
     logger('debug', 'ether/initialize') { 'waiting for client acceptance' }
     wait_for_client_acceptance
     logger('debug', 'ether/initialize') { 'connected' }
+    @loaded = true
   end
 
   def wait_for_client_acceptance
@@ -127,6 +128,7 @@ class Ether
   end
 
   def unload_server
+    @loaded = false
     @toolshck_server&.close
   rescue StandardError => e
     log_exception(e, 'warn')
@@ -150,13 +152,20 @@ class Ether
   end
 
   def cmd(cmd, timeout = @operation_timeout)
+    unless @loaded
+      load_server
+      load_ether
+    end
+
     flush
 
     @ether.puts(cmd)
 
     fetch_output_with_timeout(timeout)
-  rescue Timeout::Error
-    raise EtherError.new('cmd/ether'), "cmd (#{cmd}) timed out"
+  rescue StandardError => e
+    unload_server
+
+    raise EtherError.new('ether/cmd'), "cmd (#{cmd}) failed with error #{e.message}"
   end
 
   private
