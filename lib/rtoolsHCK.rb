@@ -1359,13 +1359,13 @@ class RToolsHCK
     @winrm_ps&.close
     logger('debug', 'close/winrm') { 'winrm shell unloaded!' }
   rescue StandardError => e
-    log_exception(e, 'debug')
+    log_exception(e, 'warn')
   end
 
   def unload_ether
     @toolshck_ether&.close
   rescue StandardError => e
-    log_exception(e, 'debug')
+    log_exception(e, 'warn')
   end
 
   def unload_toolshck
