@@ -4,6 +4,8 @@ require_relative 'exceptions'
 require_relative 'server'
 require 'socket'
 
+# rubocop:disable Metrics/ClassLength
+
 # ether class
 class Ether
   def initialize(init_opts)
@@ -179,3 +181,5 @@ class Ether
     logger('debug', 'ether/flush') { "flushed data:\n#{flushed}" }
   end
 end
+
+# rubocop:enable Metrics/ClassLength
