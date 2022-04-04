@@ -45,7 +45,7 @@ class Server
   end
 
   def check_script_file
-    logger('debug', 'server/initialize') { 'checking sctipt file on remote' }
+    logger('debug', 'server/initialize') { 'checking script file on remote' }
     if !@l_script_file.nil? then deploy_script_file
     elsif !@winrm_fs.exists?(@r_script_file)
       raise ServerError.new('server/initialize'),
