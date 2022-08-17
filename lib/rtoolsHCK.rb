@@ -1056,7 +1056,7 @@ class RToolsHCK
   #                  default
   def shutdown(restart: false)
     handle_action_exceptions(__method__) do
-      cmd_line = ['shutdown -f -t 00']
+      cmd_line = ['shutdown -f -t 00 -p']
       cmd_line << (restart ? '-r' : '-s')
 
       run(cmd_line.join(' '))
@@ -1076,7 +1076,7 @@ class RToolsHCK
   #                  default
   def machine_shutdown(machine, restart: false)
     handle_action_exceptions(__method__) do
-      cmd_line = ['shutdown -f -t 00']
+      cmd_line = ['shutdown -f -t 00 -p']
       cmd_line << (restart ? '-r' : '-s')
 
       machine_run(machine, cmd_line.join(' '))
