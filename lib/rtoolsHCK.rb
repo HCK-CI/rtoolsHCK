@@ -289,11 +289,13 @@ class RToolsHCK
   end
 
   def machine_run(machine, cmd)
-    run_output = machine_connection(machine).shell(:powershell).run(cmd)
-    where = "#{machine}/winrm/run"
+    machine_connection(machine).shell(:powershell) do
+      run_output = _1.run(cmd)
+      where = "#{machine}/winrm/run"
 
-    check_run_output(run_output, where, cmd)
-    run_output.stdout
+      check_run_output(run_output, where, cmd)
+      run_output.stdout
+    end
   rescue HTTPClient::KeepAliveDisconnected
     raise WinrmPSRunError.new(where), "Machine #{machine} reset connection."
   end
