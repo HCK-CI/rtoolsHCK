@@ -1050,6 +1050,21 @@ class RToolsHCK
 
   # == Description
   #
+  # Gets a machine's system information.
+  #
+  # == Params:
+  #
+  # +machine+::      The name of the machine as registered with the HCK\HLK
+  #                  controller
+  def get_machine_system_info(machine)
+    handle_action_exceptions(__method__) do
+      info = machine_run(machine, 'systeminfo')
+      @json ? { 'result' => 'Success', 'content' => info } : info
+    end
+  end
+
+  # == Description
+  #
   # Shuts down or restarts the studio, (you will need to reconnect after this).
   #
   # == Params:
