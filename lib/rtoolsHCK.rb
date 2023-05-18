@@ -1056,9 +1056,12 @@ class RToolsHCK
   #
   # +machine+::      The name of the machine as registered with the HCK\HLK
   #                  controller
-  def get_machine_system_info(machine)
+  # +output_format:: Specifies the format in which the output
+  #                  is to be displayed.
+  #                  Valid values: "TABLE", "LIST", "CSV".
+  def get_machine_system_info(machine, output_format = 'LIST')
     handle_action_exceptions(__method__) do
-      info = machine_run(machine, 'systeminfo')
+      info = machine_run(machine, "systeminfo /FO #{output_format.upcase}")
       @json ? { 'result' => 'Success', 'content' => info } : info
     end
   end
