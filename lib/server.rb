@@ -4,8 +4,6 @@ require_relative 'exceptions'
 require 'winrm'
 require 'winrm-fs'
 
-# rubocop:disable Metrics/ClassLength
-
 # server class
 class Server
   def initialize(init_opts)
@@ -69,111 +67,34 @@ class Server
     logger('debug', 'server/initialize') do
       "loading server to listen on port #{@server_port}"
     end
-    @log_r_path = remote_run_server
-    run_log_fetcher
-    logger('debug', 'server/initialize') { 'loaded' }
-  end
-
-  def remote_run_server
-    tmp_r_path = "C:\\#{Time.now.strftime('%d-%m-%Y_%H_%M_%S')}_toolsHCK.log"
-
-    Timeout.timeout(@connection_timeout) do
-      run("$Process = #{process_script(tmp_r_path)}")
-      check_log_file_exist_cmd = "[System.IO.File]::Exists('#{tmp_r_path}')"
-      until run(check_log_file_exist_cmd).strip.eql?('True'); end
-    end
-
-    tmp_r_path
-  rescue Timeout::Error
-    e_message = 'waiting for the server to run timed out'
-    raise ServerError.new('server/initialize'), e_message
-  end
-
-  def run(cmd, unchecked: false)
-    run_output = @winrm_ps.run(cmd)
-    return run_output.stdout if unchecked || run_output.exitcode.zero?
-
-    raise WinrmPSRunError.new('winrm/run'), "Running '#{cmd}' failed"\
-      "#{run_output.stderr.empty? ? '' : " with: #{run_output.stderr}"}"
-  end
-
-  def process_script(tmp_r_path)
-    'Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass", "-File '\
-    "#{@r_script_file}\", \"-server -timeout #{@connection_timeout} -port "\
-    "#{@server_port}\" -RedirectStandardOutput #{tmp_r_path} -PassThru -NoNewWindow"
-  end
-
-  # log fetcher sleep in seconds (polling rate)
-  LOG_FETCHER_SLEEP = 2
-
-  def run_log_fetcher
     @log_fetcher = Thread.new do
-      while sleep LOG_FETCHER_SLEEP
-        begin
-          break if Thread.current.thread_variable_get(:close)
-          break if Thread.current.thread_variable_get(:crash)
-
-          fetch_log
-        rescue StandardError => e
-          Thread.current.thread_variable_set(:crash, e)
-          logger('warn', 'server/run_log_fetcher') { "#{e.class}: #{e.message}" }
+      log_l_path = "#{@outp_dir}/#{Time.now.strftime('%d-%m-%Y_%H_%M_%S')}_toolsHCK.log"
+      File.open(log_l_path, 'a') do |file|
+        @winrm_ps.send_pipeline_command(process_script) do |message|
+          file.print message.parsed_data.output
         end
       end
     end
+    logger('debug', 'server/initialize') { 'loaded' }
   end
 
-  def fetch_log
-    return if @outp_dir.nil?
-
-    log_l_path = @outp_dir + "/#{guest_basename(@log_r_path)}"
-    FileUtils.touch(log_l_path)
-
-    to_append = r_sub_l_content(log_l_path)
-
-    return if to_append.empty?
-
-    File.open(log_l_path, 'a') do |file|
-      file.print(to_append)
-    end
+  def process_script
+    'powershell -ExecutionPolicy Bypass -File '\
+    "#{@r_script_file} -server -timeout #{@connection_timeout} -port "\
+    "#{@server_port}"
   end
 
   def guest_basename(path)
     path.nil? ? nil : path.split('\\').last
   end
 
-  def r_sub_l_content(log_l_path)
-    run("$rContent = Get-Content #{@log_r_path} -ReadCount 1024")
-    return '' if run('$rContent -eq $Null').strip.eql?('True')
-
-    from = File.open(log_l_path, 'r') { |l_content| l_content.readlines.size }
-    return '' if run('$rContent.Length').strip.to_i == from
-
-    run("$rContent[#{from}..($rContent.Length-1)]")
-  ensure
-    run('[System.GC]::Collect()')
-  end
-
   public
 
   def close
     logger('debug', 'server/close') { 'closing server' }
-
-    @log_fetcher&.thread_variable_set(:close, true)
-
-    if @log_fetcher&.thread_variable_get(:crash)
-      logger('debug', 'server/close') { 'server was crashed, nothing to do' }
-      return
-    end
-
-    run('Stop-Process -Id $Process.Id -ErrorAction Ignore -Force', unchecked: true)
-    return unless @log_r_path && @log_fetcher
-
-    @log_fetcher.join
-    fetch_log
+    @log_fetcher&.kill
   ensure
     logger('debug', 'server/close') { 'closed' }
     @winrm_ps&.close
   end
 end
-
-# rubocop:enable Metrics/ClassLength
