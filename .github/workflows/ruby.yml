@@ -9,10 +9,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Set up Ruby 2.6.5
+    - name: Set up Ruby 3.1.4
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: 2.6.5
+        ruby-version: 3.1.4
         bundler-cache: true
     - name: Test with rubocop
       run: bundle exec rake rubocop

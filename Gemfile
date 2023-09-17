@@ -2,7 +2,7 @@
 
 source 'https://rubygems.org'
 
-ruby '>= 2.6.5p114'
+ruby '>= 3.1.0'
 
 gem 'winrm', '= 2.3.4'
 gem 'winrm-fs', '= 1.3.4'
