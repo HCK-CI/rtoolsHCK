@@ -1,9 +1,9 @@
-name: Ruby
+name: RuboCop
 
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
-  build:
+  rubocop:
 
     runs-on: ubuntu-latest
 
