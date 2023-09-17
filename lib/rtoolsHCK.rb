@@ -289,9 +289,9 @@ class RToolsHCK
   end
 
   def machine_run(machine, cmd)
+    where = "#{machine}/winrm/run"
     machine_connection(machine).shell(:powershell) do |ps_shell|
       run_output = ps_shell.run(cmd)
-      where = "#{machine}/winrm/run"
 
       check_run_output(run_output, where, cmd)
       run_output.stdout
