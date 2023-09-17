@@ -13,6 +13,6 @@ group :test, :development do
   gem 'rdoc'
   gem 'rspec'
   gem 'rspec_junit_formatter'
-  gem 'rubocop', '= 1.9.1'
-  gem 'rubocop-rake', '= 0.5.1'
+  gem 'rubocop'
+  gem 'rubocop-rake'
 end
