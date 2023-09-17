@@ -78,7 +78,7 @@ class RToolsHCK
   end
 
   def get_exception_stack(exception)
-    exception.backtrace.select { |line| line.include?(File.dirname(__FILE__)) }\
+    exception.backtrace.select { |line| line.include?(File.dirname(__FILE__)) } \
              .join("\n   -- ")
   end
 
@@ -94,9 +94,9 @@ class RToolsHCK
     end
   end
 
-  def logger(level, progname = nil, &block)
-    @stdout_logger.public_send(level, progname, &block) if @log_to_stdout
-    @logger&.public_send(level, progname, &block)
+  def logger(level, progname = nil, &)
+    @stdout_logger.public_send(level, progname, &) if @log_to_stdout
+    @logger&.public_send(level, progname, &)
   end
 
   public
@@ -250,7 +250,7 @@ class RToolsHCK
       operation_timeout: WINRM_OPERATION_TIMEOUT,
       receive_timeout: WINRM_RECIEVE_TIMEOUT,
       transport: :plaintext,
-      user: user,
+      user:,
       password: pass,
       basic_auth_only: true
     }
@@ -269,7 +269,7 @@ class RToolsHCK
     return if run_output.exitcode.zero?
 
     error = "Running '#{cmd}' failed with exit code #{run_output.exitcode}." \
-            "#{run_output.stdout.empty? ? '' : "\n   -- stdout:\n#{run_output.stdout}"}"\
+            "#{run_output.stdout.empty? ? '' : "\n   -- stdout:\n#{run_output.stdout}"}" \
             "#{run_output.stderr.empty? ? '' : "\n   -- stderr:\n#{run_output.stderr}"}"
     raise WinrmPSRunError.new(where), error
   end
@@ -289,8 +289,8 @@ class RToolsHCK
   end
 
   def machine_run(machine, cmd)
-    machine_connection(machine).shell(:powershell) do
-      run_output = _1.run(cmd)
+    machine_connection(machine).shell(:powershell) do |ps_shell|
+      run_output = ps_shell.run(cmd)
       where = "#{machine}/winrm/run"
 
       check_run_output(run_output, where, cmd)
@@ -333,7 +333,7 @@ class RToolsHCK
   end
 
   def guest_basename(path)
-    path.nil? ? nil : path.split('\\').last
+    path&.split('\\')&.last
   end
 
   def guest_dirname(path)
@@ -569,7 +569,7 @@ class RToolsHCK
   def create_project_target(target, project, machine, pool)
     handle_action_exceptions(__method__) do
       cmd_line = [
-        "createprojecttarget '#{target}' '#{project}' "\
+        "createprojecttarget '#{target}' '#{project}' " \
         "'#{machine}' '#{pool}'"
       ]
       cmd_line << 'json' if @json
@@ -592,7 +592,7 @@ class RToolsHCK
   def delete_project_target(target, project, machine, pool)
     handle_action_exceptions(__method__) do
       cmd_line = [
-        "deleteprojecttarget '#{target}' "\
+        "deleteprojecttarget '#{target}' " \
         "'#{project}' '#{machine}' '#{pool}'"
       ]
       cmd_line << 'json' if @json
@@ -720,7 +720,7 @@ class RToolsHCK
   def get_test_info(test, target, project, machine, pool)
     handle_action_exceptions(__method__) do
       cmd_line = [
-        "gettestinfo '#{test}' '#{target}' '#{project}' '#{machine}' "\
+        "gettestinfo '#{test}' '#{target}' '#{project}' '#{machine}' " \
         "'#{pool}'"
       ]
       cmd_line << 'json' if @json
@@ -834,7 +834,7 @@ class RToolsHCK
                                 pool)
     handle_action_exceptions(__method__) do
       cmd_line = [
-        "applytestresultfilters '#{result}' '#{test}' '#{target}' "\
+        "applytestresultfilters '#{result}' '#{test}' '#{target}' " \
         "'#{project}' '#{machine}' '#{pool}'"
       ]
       cmd_line << 'json' if @json
@@ -858,7 +858,7 @@ class RToolsHCK
   def list_test_results(test, target, project, machine, pool)
     handle_action_exceptions(__method__) do
       cmd_line = [
-        "listtestresults '#{test}' '#{target}' '#{project}' '#{machine}' "\
+        "listtestresults '#{test}' '#{target}' '#{project}' '#{machine}' " \
         "'#{pool}'"
       ]
       cmd_line << 'json' if @json
@@ -890,7 +890,7 @@ class RToolsHCK
                            pool)
     handle_action_exceptions(__method__) do
       cmd_line = [
-        "ziptestresultlogs '#{result}' '#{test}' '#{target}' "\
+        "ziptestresultlogs '#{result}' '#{test}' '#{target}' " \
         "'#{project}' '#{machine}' '#{pool}'"
       ]
       cmd_line << 'json' if @json
@@ -904,7 +904,7 @@ class RToolsHCK
   private
 
   def handle_project_package_json(project_package)
-    project_package_guest_path = project_package['content']\
+    project_package_guest_path = project_package['content'] \
                                    ['projectpackagepath']
     project_package['content'].delete('projectpackagepath')
     project_package['content']['guestprojectpackagepath'] = \
@@ -930,7 +930,7 @@ class RToolsHCK
     return false unless project_package
 
     unless @outp_dir.nil?
-      puts 'HOST: Package fetched to '\
+      puts 'HOST: Package fetched to ' \
            "#{file_to_outp_dir(parse_project_package_guest_path(stream))}"
     end
     project_package
@@ -966,7 +966,6 @@ class RToolsHCK
 
   def dummy_package_progress_info_handler
     proc do |_progress_package|
-      nil
     end
   end
 
@@ -1232,12 +1231,12 @@ class RToolsHCK
 
   def export_certificate_script(sys_path, cer_path)
     [
-      '$exportType = '\
-        '[System.Security.Cryptography.X509Certificates.X509ContentType]::Cert',
+      '$exportType = ' \
+      '[System.Security.Cryptography.X509Certificates.X509ContentType]::Cert',
       "$cert = (Get-AuthenticodeSignature #{sys_path}).SignerCertificate",
       'if ($cert -eq $null) { exit(-1) }',
       "[System.IO.File]::WriteAllBytes('#{cer_path}', $cert" \
-        '.Export($exportType))'
+      '.Export($exportType))'
     ].join('; ')
   end
 
@@ -1277,7 +1276,7 @@ class RToolsHCK
       "pnputil -i -a #{windows_path}"
     when 'NON-PNP'
       'RUNDLL32.EXE SETUPAPI.DLL,InstallHinfSection ' \
-        "DefaultInstall 128 #{windows_path}"
+      "DefaultInstall 128 #{windows_path}"
     when 'custom'
       get_custom_command(r_directory, windows_path, custom_cmd)
     end
@@ -1296,7 +1295,7 @@ class RToolsHCK
     machine_run(machine, install_certificate_script(cer_path))
   rescue WinrmPSRunError => e
     raise RToolsHCKActionError.new("action/install_machine_driver_package/#{e.where}"),
-          'Installing certificate failed, maybe digital signature is missing. '\
+          'Installing certificate failed, maybe digital signature is missing. ' \
           "Previous exception #{e.message}"
   end
 

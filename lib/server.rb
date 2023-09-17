@@ -28,9 +28,9 @@ class Server
 
   private
 
-  def logger(level, progname = nil, &block)
-    @stdout_logger.public_send(level, progname, &block) if @log_to_stdout
-    @logger&.public_send(level, progname, &block)
+  def logger(level, progname = nil, &)
+    @stdout_logger.public_send(level, progname, &) if @log_to_stdout
+    @logger&.public_send(level, progname, &)
   end
 
   def load_instance_variables(init_opts)
@@ -79,13 +79,13 @@ class Server
   end
 
   def process_script
-    'powershell -ExecutionPolicy Bypass -File '\
-    "#{@r_script_file} -server -timeout #{@connection_timeout} -port "\
-    "#{@server_port}"
+    'powershell -ExecutionPolicy Bypass -File ' \
+      "#{@r_script_file} -server -timeout #{@connection_timeout} -port " \
+      "#{@server_port}"
   end
 
   def guest_basename(path)
-    path.nil? ? nil : path.split('\\').last
+    path&.split('\\')&.last
   end
 
   public
