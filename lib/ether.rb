@@ -24,7 +24,7 @@ class Ether
   private
 
   def get_exception_stack(exception)
-    exception.backtrace.select { |line| line.include?(File.dirname(__FILE__)) }\
+    exception.backtrace.select { |line| line.include?(File.dirname(__FILE__)) } \
              .join("\n   -- ")
   end
 
@@ -40,9 +40,9 @@ class Ether
     end
   end
 
-  def logger(level, progname = nil, &block)
-    @stdout_logger.public_send(level, progname, &block) if @log_to_stdout
-    @logger&.public_send(level, progname, &block)
+  def logger(level, progname = nil, &)
+    @stdout_logger.public_send(level, progname, &) if @log_to_stdout
+    @logger&.public_send(level, progname, &)
   end
 
   def load_instance_variables(init_opts)

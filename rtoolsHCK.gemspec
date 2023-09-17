@@ -25,4 +25,5 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency('rdoc')
   s.add_runtime_dependency('winrm',      '= 2.3.4')
   s.add_runtime_dependency('winrm-fs',   '= 1.3.4')
+  s.metadata['rubygems_mfa_required'] = 'true'
 end
