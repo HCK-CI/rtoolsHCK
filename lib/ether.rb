@@ -24,7 +24,7 @@ class Ether
   private
 
   def get_exception_stack(exception)
-    exception.backtrace.select { |line| line.include?(File.dirname(__FILE__)) } \
+    exception.backtrace.select { |line| line.include?(File.dirname(__FILE__)) }
              .join("\n   -- ")
   end
 
