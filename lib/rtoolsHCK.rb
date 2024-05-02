@@ -78,7 +78,7 @@ class RToolsHCK
   end
 
   def get_exception_stack(exception)
-    exception.backtrace.select { |line| line.include?(File.dirname(__FILE__)) } \
+    exception.backtrace.select { |line| line.include?(File.dirname(__FILE__)) }
              .join("\n   -- ")
   end
 
@@ -904,13 +904,12 @@ class RToolsHCK
   private
 
   def handle_project_package_json(project_package)
-    project_package_guest_path = project_package['content'] \
-                                   ['projectpackagepath']
+    project_package_guest_path = project_package['content']['projectpackagepath']
     project_package['content'].delete('projectpackagepath')
-    project_package['content']['guestprojectpackagepath'] = \
+    project_package['content']['guestprojectpackagepath'] =
       project_package_guest_path
     unless @outp_dir.nil?
-      project_package['content']['hostprojectpackagepath'] = \
+      project_package['content']['hostprojectpackagepath'] =
         file_to_outp_dir(project_package_guest_path)
     end
     project_package
