@@ -1005,6 +1005,7 @@ class RToolsHCK
   # == Params:
   #
   # +project+::      The name of the project
+  # +playlist+::     Provide a playlist file path to apply, (can be nil)
   # +handler+::      The progress info handler, (can be nil), usage example:
   #                    handler = proc { |progress_package|
   #                      puts progress_package['stepscount']
@@ -1018,10 +1019,15 @@ class RToolsHCK
   #                     i. 'maximum': maximum progress counter value
   #                     i. 'message': progress info message
   #
-  def create_project_package(project, handler = nil)
+  def create_project_package(project, playlist = nil, handler = nil)
     handle_action_exceptions(__method__) do
       cmd_line = ["createprojectpackage '#{project}' -rph"]
       cmd_line << 'json' if @json
+
+      if playlist
+        r_playlist = do_upload_playlist_file(playlist)
+        cmd_line << "-playlist #{r_playlist}"
+      end
 
       handler = dummy_package_progress_info_handler if handler.nil?
       handle_create_project_package(cmd_line.join(' '), handler)
