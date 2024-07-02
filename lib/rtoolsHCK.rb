@@ -604,6 +604,11 @@ class RToolsHCK
   private
 
   def do_upload_playlist_file(l_playlist)
+    unless File.exist?(l_playlist)
+      raise RToolsHCKError.new('action/upload_playlist'),
+            'Playlist file is not valid.'
+    end
+
     r_path = "#{@winrm_fs.temp_dir}/#{SecureRandom.uuid}.xml"
     @winrm_fs.upload(l_playlist, r_path) do |cb, tb, lp, rp|
       # TODO: Check transfer
@@ -613,10 +618,6 @@ class RToolsHCK
 
   def do_list_tests(cmd_line, l_playlist)
     unless l_playlist.nil?
-      unless File.exist?(l_playlist)
-        raise RToolsHCKError.new('action/list_tests'),
-              'Playlist file is not valid.'
-      end
       r_playlist = do_upload_playlist_file(l_playlist)
       cmd_line << "-playlist #{r_playlist}"
     end
