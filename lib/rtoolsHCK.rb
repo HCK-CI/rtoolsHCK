@@ -748,6 +748,7 @@ class RToolsHCK
                  machine,
                  pool,
                  sup = nil,
+                 parameters = nil,
                  ipv6 = nil)
     handle_action_exceptions(__method__) do
       cmd_line = [
@@ -755,6 +756,7 @@ class RToolsHCK
       ]
       cmd_line << 'json' if @json
       cmd_line << "-sup '#{sup}'" unless sup.nil?
+      cmd_line << "-parameters '#{parameters.to_json}'" unless parameters.empty?
       cmd_line << "-IPv6 '#{ipv6}'" unless ipv6.nil?
 
       handle_return(@toolshck_ether.cmd(cmd_line.join(' ')))
