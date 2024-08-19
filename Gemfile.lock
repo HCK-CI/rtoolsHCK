@@ -21,7 +21,7 @@ GEM
       little-plugger (~> 1.1)
       multi_json (~> 1.14)
     multi_json (1.15.0)
-    nori (2.7.0)
+    nori (2.7.1)
       bigdecimal
     parallel (1.25.1)
     parser (3.3.3.0)
@@ -74,16 +74,17 @@ GEM
     stringio (3.1.1)
     strscan (3.1.0)
     unicode-display_width (2.5.0)
-    winrm (2.3.4)
+    winrm (2.3.9)
       builder (>= 2.1.2)
       erubi (~> 1.8)
       gssapi (~> 1.2)
       gyoku (~> 1.0)
       httpclient (~> 2.2, >= 2.2.0.2)
       logging (>= 1.6.1, < 3.0)
-      nori (~> 2.0)
-      rubyntlm (~> 0.6.0, >= 0.6.1)
-    winrm-fs (1.3.4)
+      nori (~> 2.0, >= 2.7.1)
+      rexml (~> 3.0)
+      rubyntlm (~> 0.6.0, >= 0.6.3)
+    winrm-fs (1.3.5)
       erubi (~> 1.8)
       logging (>= 1.6.1, < 3.0)
       rubyzip (~> 2.0)
@@ -100,8 +101,8 @@ DEPENDENCIES
   rspec_junit_formatter
   rubocop
   rubocop-rake
-  winrm (= 2.3.4)
-  winrm-fs (= 1.3.4)
+  winrm (= 2.3.9)
+  winrm-fs (= 1.3.5)
 
 RUBY VERSION
    ruby 3.1.4p223
