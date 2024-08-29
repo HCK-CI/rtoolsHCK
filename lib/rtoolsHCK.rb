@@ -133,8 +133,6 @@ class RToolsHCK
   #   :outp_dir      - The path of the directory to fetch the output files to on
   #                    the local machine
   #                    (default: disabled)
-  #   :l_script_file - The toolsHCK.ps1 file path on local machine
-  #                    (default: disabled)
   #   :r_script_file - The toolsHCK.ps1 file path on remote machine
   #                    (default: C:\\toolsHCK.ps1)
   #
@@ -164,7 +162,6 @@ class RToolsHCK
     logger: nil,
     log_to_stdout: false,
     outp_dir: nil,
-    l_script_file: nil,
     r_script_file: 'C:\\toolsHCK.ps1'
   }.freeze
 
@@ -240,7 +237,6 @@ class RToolsHCK
     @winrm_ports = init_opts[:winrm_ports]
     @timeout = init_opts[:timeout]
     @json = init_opts[:json]
-    @l_script_file = init_opts[:l_script_file]
     @r_script_file = init_opts[:r_script_file]
   end
 
@@ -325,7 +321,6 @@ class RToolsHCK
       operation_timeout: @timeout,
       connection_timeout: TOOLSHCK_CONNECTION_TIMEOUT,
       outp_dir: @outp_dir,
-      l_script_file: @l_script_file,
       r_script_file: @r_script_file,
       log_to_stdout: @log_to_stdout,
       logger: @logger

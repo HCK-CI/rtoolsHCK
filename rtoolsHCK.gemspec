@@ -16,8 +16,8 @@ Gem::Specification.new do |s|
   s.homepage         = 'https://github.com/HCK-CI/rtoolsHCK'
 
   all_files          = `git ls-files -z`.split("\x0")
-  s.files            = all_files.grep(/^(lib)/)
-  s.require_paths    = ['lib']
+  s.files            = all_files.grep(/^(lib|tools)/)
+  s.require_paths    = %w[lib tools]
 
   s.extra_rdoc_files = %w[README.md LICENSE]
 

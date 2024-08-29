@@ -38,14 +38,13 @@ class Server
     @server_port = init_opts[:server_port]
     @connection_timeout = init_opts[:connection_timeout]
     @outp_dir = init_opts[:outp_dir]
-    @l_script_file = init_opts[:l_script_file]
     @r_script_file = init_opts[:r_script_file]
   end
 
   def check_script_file
     logger('debug', 'server/initialize') { 'checking script file on remote' }
-    if !@l_script_file.nil? then deploy_script_file
-    elsif !@winrm_fs.exists?(@r_script_file)
+    deploy_script_file
+    unless @winrm_fs.exists?(@r_script_file)
       raise ServerError.new('server/initialize'),
             'toolsHCK.ps1 script was not found on remote.'
     end
@@ -53,13 +52,10 @@ class Server
   end
 
   def deploy_script_file
+    tools_hck = File.expand_path('../tools/toolsHCK.ps1', __dir__)
     logger('debug', 'server/initialize') { 'deploying script file on remote' }
-    unless File.file?(@l_script_file)
-      raise ServerError.new('server/initialize'),
-            "can't find the l_script_file specified."
-    end
     @winrm_fs.delete(@r_script_file)
-    @winrm_fs.upload(File.expand_path(@l_script_file), @r_script_file)
+    @winrm_fs.upload(tools_hck, @r_script_file)
     logger('debug', 'server/initialize') { 'deployed' }
   end
 

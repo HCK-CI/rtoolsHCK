@@ -3,7 +3,7 @@
 
 [![CircleCI](https://circleci.com/gh/HCK-CI/rtoolsHCK.svg?style=svg)](https://circleci.com/gh/HCK-CI/rtoolsHCK)
 
-rtoolsHCK is a ruby gem tool-kit based on [toolsHCK](https://github.com/HCK-CI/toolsHCK) for managing and maintaining the HCK setup remotely.
+rtoolsHCK is a ruby gem tool-kit based on [toolsHCK](https://github.com/HCK-CI/rtoolsHCK/blob/master/tools/toolsHCK.ps1) for managing and maintaining the HCK setup remotely.
 
 ## Getting Started
 
@@ -41,7 +41,6 @@ A hash that contains:
 | :log_to_stdout | Log to STDOUT switch<br>**(default: false)**
 | :logger | The ruby logger object for logging<br>**(default: disabled)**
 | :outp_dir | The path of the directory to fetch the output files to on the local machine<br>**(default: disbaled)**
-| :script_file | The toolsHCK.ps1 file path on local machine<br>**(default: disabled)**
 
 ### Examples
 
