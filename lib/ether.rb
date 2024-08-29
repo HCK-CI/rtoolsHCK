@@ -52,7 +52,6 @@ class Ether
     @outp_dir = init_opts[:outp_dir]
     @operation_timeout = init_opts[:operation_timeout]
     @connection_timeout = init_opts[:connection_timeout]
-    @l_script_file = init_opts[:l_script_file]
     @r_script_file = init_opts[:r_script_file]
   end
 
@@ -62,7 +61,6 @@ class Ether
       server_port: @server_port,
       connection_timeout: @connection_timeout,
       outp_dir: @outp_dir,
-      l_script_file: @l_script_file,
       r_script_file: @r_script_file,
       log_to_stdout: @log_to_stdout,
       logger: @logger
