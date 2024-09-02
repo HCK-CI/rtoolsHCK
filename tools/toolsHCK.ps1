@@ -40,7 +40,7 @@ if ($env:WTTSTDIO -like "*\Hardware Certification Kit\*") {
 }
 
 ##
-$Version = "0.0.3"
+$Version = "0.5.0"
 $MaxJsonDepth = 6
 ##
 
@@ -1531,7 +1531,7 @@ function queuetest {
     if (-Not [String]::IsNullOrEmpty($parameters)) {
         $parametersHashtable = ConvertFrom-Json $parameters
         foreach ($parameter in $parametersHashtable.PSObject.Properties) {
-            $WntdTest.SetParameter($parameter.Name, $parameter.Value, [Microsoft.Windows.Kits.Hardware.ObjectModel.ParameterSetAsDefault]::DoNotSetAsDefault) | Out-Null 
+            $WntdTest.SetParameter($parameter.Name, $parameter.Value, [Microsoft.Windows.Kits.Hardware.ObjectModel.ParameterSetAsDefault]::DoNotSetAsDefault) | Out-Null
         }
     }
 
