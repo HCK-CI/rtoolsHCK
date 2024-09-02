@@ -741,6 +741,7 @@ class RToolsHCK
   # +pool+::         The name of the pool
   # +sup+::          The name of the support machine as registered with the
   #                  HCK\HLK controller, (can be nil)
+  # +parameters+::   Additional parameters in format '{ ParameterName1: Value1, ParameterName2: Value2 }', (can be nil)
   # +ipv6+::         The IPv6 address of the support machine, (can be nil)
   def queue_test(test,
                  target,
@@ -756,7 +757,7 @@ class RToolsHCK
       ]
       cmd_line << 'json' if @json
       cmd_line << "-sup '#{sup}'" unless sup.nil?
-      cmd_line << "-parameters '#{parameters.to_json}'" unless parameters.empty?
+      cmd_line << "-parameters '#{parameters.to_json}'" unless parameters.nil?
       cmd_line << "-IPv6 '#{ipv6}'" unless ipv6.nil?
 
       handle_return(@toolshck_ether.cmd(cmd_line.join(' ')))
