@@ -1127,6 +1127,22 @@ class RToolsHCK
 
   # == Description
   #
+  # Run command on a studio, (powershell).
+  #
+  # == Params:
+  #
+  # +command+::          The command to run as a string
+  def run_on_studio(command)
+    handle_action_exceptions(__method__) do
+      ret = run(command)
+      return (@json ? { 'result' => 'Success' } : true) if ret.empty?
+
+      @json ? { 'result' => 'Success', 'content' => ret } : true
+    end
+  end
+
+  # == Description
+  #
   # Upload directory to temp directory of the machine.
   #
   # == Params:
