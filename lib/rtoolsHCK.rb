@@ -67,6 +67,7 @@ require 'tempfile'
 class RToolsHCK
   WINRM_OPERATION_TIMEOUT = 9_999
   WINRM_RECIEVE_TIMEOUT = 99_999
+  WINRM_RETRY_INTERVAL = 60
 
   private
 
@@ -176,7 +177,15 @@ class RToolsHCK
   end
 
   def start_studio_service(service_name)
+    retries ||= 0
     run("Start-Service #{service_name}")
+  rescue WinrmPSRunError => e
+    raise e unless (retries += 1) < 4
+
+    logger('warn', "#{e.message} Retrying in #{WINRM_RETRY_INTERVAL} seconds...")
+    sleep(WINRM_RETRY_INTERVAL)
+
+    retry
   end
 
   def start_studio_services
