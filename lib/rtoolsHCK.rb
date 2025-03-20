@@ -882,26 +882,30 @@ class RToolsHCK
   #
   # == Params:
   #
-  # +result+::       The index of the test result, use list_test_results action
-  #                  to get it
-  # +test+::         The id of the test, use list_tests action to get it
-  # +target+::       The key of the target, use list_machine_targets to get it
-  # +project+::      The name of the project
-  # +machine+::      The name of the machine as registered with the HCK\HLK
-  #                  controller
-  # +pool+::         The name of the pool
-  def zip_test_result_logs(result,
+  # +result_index+::         If index_instance_id is false the index of the test result,
+  #                          use list_test_results action to get it
+  #                          If index_instance_id is true the instance id of the test result
+  # +test+::                 The id of the test, use list_tests action to get it
+  # +target+::               The key of the target, use list_machine_targets to get it
+  # +project+::              The name of the project
+  # +machine+::              The name of the machine as registered with the HCK\HLK
+  #                          controller
+  # +pool+::                 The name of the pool
+  # +index_instance_id+::    If true, the result_index is treated as an instance id
+  def zip_test_result_logs(result_index,
                            test,
                            target,
                            project,
                            machine,
-                           pool)
+                           pool,
+                           index_instance_id: false)
     handle_action_exceptions(__method__) do
       cmd_line = [
-        "ziptestresultlogs '#{result}' '#{test}' '#{target}' " \
+        "ziptestresultlogs '#{result_index}' '#{test}' '#{target}' " \
         "'#{project}' '#{machine}' '#{pool}'"
       ]
       cmd_line << 'json' if @json
+      cmd_line << '-indexinstanceid' if index_instance_id
 
       stream = @toolshck_ether.cmd(cmd_line.join(' '))
       test_results = handle_return(stream)
