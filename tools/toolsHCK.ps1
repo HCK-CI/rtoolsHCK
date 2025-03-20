@@ -1916,7 +1916,16 @@ function listtestresults {
 # ZipTestResultLogs
 function ziptestresultlogs {
     [CmdletBinding()]
-    param([Switch]$help, [Parameter(Position=1)][String]$result, [Parameter(Position=2)][String]$test, [Parameter(Position=3)][String]$target, [Parameter(Position=4)][String]$project, [Parameter(Position=5)][String]$machine, [Parameter(Position=6)][String]$pool)
+    param(
+        [Switch]$help,
+        [Switch]$indexinstanceid,
+        [Parameter(Position=1)][String]$resultindex,
+        [Parameter(Position=2)][String]$test,
+        [Parameter(Position=3)][String]$target,
+        [Parameter(Position=4)][String]$project,
+        [Parameter(Position=5)][String]$machine,
+        [Parameter(Position=6)][String]$pool
+    )
 
     function Usage {
         Write-Output "ziptestresultlogs:"
@@ -1952,7 +1961,7 @@ function ziptestresultlogs {
         if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
     }
 
-    if ([String]::IsNullOrEmpty($result)) {
+    if ([String]::IsNullOrEmpty($resultindex)) {
         if (-Not $json) {
             Write-Output "WARNING: Please provide a test result's index."
             Usage; return
@@ -2024,7 +2033,13 @@ function ziptestresultlogs {
 
     if (-Not ($WntdTest = $WntdTests | Where-Object { $_.Id -eq $test })) { throw "Didn't find a test with the id given." }
 
-    if (-Not ($WntdResult = $WntdTest.GetTestResults()[$result])) { throw "Invalid test result index, can't find the test result." } else { $WntdLogs = $WntdResult.GetLogs() }
+    if ($indexinstanceid) {
+        if (-Not ($WntdResult = $WntdTest.GetTestResults() | Where-Object { $_.InstanceId -eq $resultindex }))
+            { throw "Invalid test result instance id, can't find the test result." } else { $WntdLogs = $WntdResult.GetLogs() }
+    } else {
+        if (-Not ($WntdResult = $WntdTest.GetTestResults()[$resultindex]))
+            { throw "Invalid test result index, can't find the test result." } else { $WntdLogs = $WntdResult.GetLogs() }
+    }
     if (-Not ($WntdLogs.Count -ge 1)) { throw "There are no logs to be zipped in the test result." }
 
     $DayStamp = $(get-date).ToString("dd-MM-yyyy")
@@ -2033,7 +2048,7 @@ function ziptestresultlogs {
     $SafeTestName = ($WntdTest.Name -replace '[^\w\-\.]', '_').Trim('_')
 
     $LogsDir = $env:TEMP + "\prometheus_test_logs\$DayStamp\[$TimeStamp]" + $WntdTest.Id
-    $ZipPath = $env:TEMP + "\prometheus_test_logs\$DayStamp\$DayStamp" + "_" + $TimeStamp + "_" + $SafeTestName + ".zip"
+    $ZipPath = $env:TEMP + "\prometheus_test_logs\$DayStamp\$DayStamp" + "_" + $TimeStamp + "_" + $WntdResult.InstanceId + "_" + $SafeTestName + ".zip"
 
     if (-Not $json) {
         Write-Output "The test has $($WntdResult.Status)!."
