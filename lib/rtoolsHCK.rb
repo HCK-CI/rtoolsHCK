@@ -857,16 +857,23 @@ class RToolsHCK
   #
   # == Params:
   #
-  # +test+::         The id of the test, use list_tests action to get it
+  # +test_id+::      The id of the test, use list_tests action to get it
+  #                  If id is nil, all tests results will be listed
   # +target+::       The key of the target, use list_machine_targets to get it
   # +project+::      The name of the project
   # +machine+::      The name of the machine as registered with the HCK\HLK
   #                  controller
   # +pool+::         The name of the pool
-  def list_test_results(test, target, project, machine, pool)
+  def list_test_results(test_id, target, project, machine, pool)
+    test_id = if test_id.nil?
+                '$null'
+              else
+                "'#{test_id}'"
+              end
+
     handle_action_exceptions(__method__) do
       cmd_line = [
-        "listtestresults '#{test}' '#{target}' '#{project}' '#{machine}' " \
+        "listtestresults #{test_id} '#{target}' '#{project}' '#{machine}' " \
         "'#{pool}'"
       ]
       cmd_line << 'json' if @json

@@ -1740,12 +1740,20 @@ function applytestresultfilters {
 # ListTestResults
 function listtestresults {
     [CmdletBinding()]
-    param([Switch]$help, [Parameter(Position=1)][String]$test, [Parameter(Position=2)][String]$target, [Parameter(Position=3)][String]$project, [Parameter(Position=4)][String]$machine, [Parameter(Position=5)][String]$pool)
+    param(
+        [Switch]$help,
+        [Parameter(Position=1)][AllowNull()][String]$testid,
+        [Parameter(Position=2)][String]$target,
+        [Parameter(Position=3)][String]$project,
+        [Parameter(Position=4)][String]$machine,
+        [Parameter(Position=5)][String]$pool
+    )
 
     function Usage {
         Write-Output "listtestresults:"
         Write-Output ""
-        Write-Output "A script that lists all of the test results and lists them and their info."
+        Write-Output "A script that lists all of the test results (if testid specified) or "
+        Write-Output "lists all of the results for all tests (if testid '$null') and lists them and their info."
         Write-Output "These tasks are done by using the HCK\HLK API provided with the Windows HCK\HLK Studio."
         Write-Output ""
         Write-Output "Usage:"
@@ -1774,14 +1782,6 @@ function listtestresults {
         if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
     }
 
-    if ([String]::IsNullOrEmpty($test)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a test's id."
-            Usage; return
-        } else {
-            throw "Please provide a test's id."
-        }
-    }
     if ([String]::IsNullOrEmpty($target)) {
         if (-Not $json) {
             Write-Output "WARNING: Please provide a target's key."
@@ -1834,81 +1834,90 @@ function listtestresults {
     }
 
     $WntdTests = New-Object System.Collections.ArrayList
-    $WntdPITargets | foreach { $WntdTests.AddRange($_.GetTests()) }
 
-    if (-Not ($WntdTest = $WntdTests | Where-Object { $_.Id -eq $test })) { throw "Didn't find a test with the id given." }
-
-    if (-Not ($WntdTest.GetTestResults().Count -ge 1)) { throw "The test hasen't been queued, can't find test results." } else { $WntdResults = $WntdTest.GetTestResults() }
-
-    if (-Not $json) {
-        Write-Output ""
-        Write-Output "The requested project test's results:"
-        Write-Output ""
-
-        foreach ($tTestResult in $WntdResults) {
-            $tTestResult.Refresh()
-            Write-Output "============================================="
-            Write-Output "Test result index : $($WntdResults.IndexOf($tTestResult))"
-            Write-Output ""
-            Write-Output "    Test name           : $($tTestResult.Test.Name)"
-            Write-Output "    Completion time     : $($tTestResult.CompletionTime)"
-            Write-Output "    Schedule time       : $($tTestResult.ScheduleTime)"
-            Write-Output "    Start time          : $($tTestResult.StartTime)"
-            Write-Output "    Status              : $($tTestResult.Status)"
-            Write-Output "    Are filters applied : $($tTestResult.AreFiltersApplied)"
-            Write-Output "    Target name         : $($tTestResult.Target.Name)"
-            Write-Output "    Tasks               :"
-            foreach ($tTask in $tTestResult.GetTasks()) {
-                Write-Output "        $($tTask.Name):"
-                Write-Output "            Stage              : $($tTask.Stage)"
-                Write-Output "            Status             : $($tTask.Status)"
-                if (-Not [String]::IsNullOrEmpty($tTask.TaskErrorMessage)) {
-                    Write-Output "            Task error message : $($tTask.TaskErrorMessage)"
-                }
-                Write-Output "            Task type          : $($tTask.TaskType)"
-                if ($tTask.GetChildTasks()) {
-                    Write-Output "            Sub tasks          :"
-
-                    foreach ($subtTask in $tTask.GetChildTasks()) {
-                        Write-Output "                $($subtTask.Name):"
-                        Write-Output "                    Stage              : $($subtTask.Stage)"
-                        Write-Output "                    Status             : $($subtTask.Status)"
-                        if (-Not [String]::IsNullOrEmpty($subtTask.TaskErrorMessage)) {
-                            Write-Output "                    Task error message : $($subtTask.TaskErrorMessage)"
-                        }
-                        Write-Output "                    Task type          : $($subtTask.TaskType)"
-                        if (-Not ($subtTask -eq $tTask.GetChildTasks()[-1])) {
-                            Write-Output ""
-                        }
-                    }
-                }
-                Write-Output ""
-            }
-            Write-Output "============================================="
-        }
+    if ([String]::IsNullOrEmpty($testid)) {
+        $WntdPITargets | foreach { $WntdTests.AddRange($_.GetTests()) }
     } else {
-        $testresultlist = New-Object System.Collections.ArrayList
+        $WntdPITargets | foreach { $_.GetTests() } | Where-Object { $_.Id -eq $testid } | foreach { $WntdTests.Add($_) | Out-Null }
+        if ($WntdTests.Count -lt 1) { throw "Didn't find a test with the id given." }
+        if ($WntdTests[0].GetTestResults().Count -lt 1) { throw "The test hasen't been queued, can't find test results." }
+    }
 
-        foreach ($tTestResult in $WntdResults) {
-            $tTestResult.Refresh()
-            $taskslist = New-Object System.Collections.ArrayList
+    $testresultlist = New-Object System.Collections.ArrayList
+    foreach ($WntdTest in $WntdTests) {
+        $WntdResults = $WntdTest.GetTestResults()
 
-            foreach ($tTask in $tTestResult.GetTasks()) {
-                $subtaskslist = New-Object System.Collections.ArrayList
+        if (-Not $json) {
+            Write-Output ""
+            Write-Output "The requested project test's results:"
+            Write-Output "Test name: $($WntdTest.Name)"
+            Write-Output ""
 
-                if ($tTask.GetChildTasks()) {
-                    foreach ($subtTask in $tTask.GetChildTasks()) {
-                        $subtasktype = (New-Task $subtTask.Name $subtTask.Stage $subtTask.Status.ToString() $subtTask.TaskErrorMessage $subtTask.TaskType (New-Object System.Collections.ArrayList))
-                        $subtaskslist.Add($subtasktype) | Out-Null
+            foreach ($tTestResult in $WntdResults) {
+                $tTestResult.Refresh()
+                Write-Output "============================================="
+                Write-Output "Test result index : $($WntdResults.IndexOf($tTestResult))"
+                Write-Output ""
+                Write-Output "    Test name           : $($tTestResult.Test.Name)"
+                Write-Output "    Completion time     : $($tTestResult.CompletionTime)"
+                Write-Output "    Schedule time       : $($tTestResult.ScheduleTime)"
+                Write-Output "    Start time          : $($tTestResult.StartTime)"
+                Write-Output "    Status              : $($tTestResult.Status)"
+                Write-Output "    Are filters applied : $($tTestResult.AreFiltersApplied)"
+                Write-Output "    Target name         : $($tTestResult.Target.Name)"
+                Write-Output "    Tasks               :"
+                foreach ($tTask in $tTestResult.GetTasks()) {
+                    Write-Output "        $($tTask.Name):"
+                    Write-Output "            Stage              : $($tTask.Stage)"
+                    Write-Output "            Status             : $($tTask.Status)"
+                    if (-Not [String]::IsNullOrEmpty($tTask.TaskErrorMessage)) {
+                        Write-Output "            Task error message : $($tTask.TaskErrorMessage)"
                     }
+                    Write-Output "            Task type          : $($tTask.TaskType)"
+                    if ($tTask.GetChildTasks()) {
+                        Write-Output "            Sub tasks          :"
+
+                        foreach ($subtTask in $tTask.GetChildTasks()) {
+                            Write-Output "                $($subtTask.Name):"
+                            Write-Output "                    Stage              : $($subtTask.Stage)"
+                            Write-Output "                    Status             : $($subtTask.Status)"
+                            if (-Not [String]::IsNullOrEmpty($subtTask.TaskErrorMessage)) {
+                                Write-Output "                    Task error message : $($subtTask.TaskErrorMessage)"
+                            }
+                            Write-Output "                    Task type          : $($subtTask.TaskType)"
+                            if (-Not ($subtTask -eq $tTask.GetChildTasks()[-1])) {
+                                Write-Output ""
+                            }
+                        }
+                    }
+                    Write-Output ""
                 }
-                $tasktype = (New-Task $tTask.Name $tTask.Stage $tTask.Status.ToString() $tTask.TaskErrorMessage $tTask.TaskType $subtaskslist)
-                $taskslist.Add($tasktype) | Out-Null
+                Write-Output "============================================="
             }
+        } else {
+            foreach ($tTestResult in $WntdResults) {
+                $tTestResult.Refresh()
+                $taskslist = New-Object System.Collections.ArrayList
 
-            $testresultlist.Add((New-TestResult $tTestResult.Test.Name $tTestResult.CompletionTime.ToString() $tTestResult.ScheduleTime.ToString() $tTestResult.StartTime.ToString() $tTestResult.Status.ToString() $tTestResult.InstanceId.ToString() $tTestResult.AreFiltersApplied.ToString() $tTestResult.Target.Name $taskslist)) | Out-Null
+                foreach ($tTask in $tTestResult.GetTasks()) {
+                    $subtaskslist = New-Object System.Collections.ArrayList
+
+                    if ($tTask.GetChildTasks()) {
+                        foreach ($subtTask in $tTask.GetChildTasks()) {
+                            $subtasktype = (New-Task $subtTask.Name $subtTask.Stage $subtTask.Status.ToString() $subtTask.TaskErrorMessage $subtTask.TaskType (New-Object System.Collections.ArrayList))
+                            $subtaskslist.Add($subtasktype) | Out-Null
+                        }
+                    }
+                    $tasktype = (New-Task $tTask.Name $tTask.Stage $tTask.Status.ToString() $tTask.TaskErrorMessage $tTask.TaskType $subtaskslist)
+                    $taskslist.Add($tasktype) | Out-Null
+                }
+
+                $testresultlist.Add((New-TestResult $tTestResult.Test.Name $tTestResult.CompletionTime.ToString() $tTestResult.ScheduleTime.ToString() $tTestResult.StartTime.ToString() $tTestResult.Status.ToString() $tTestResult.InstanceId.ToString() $tTestResult.AreFiltersApplied.ToString() $tTestResult.Target.Name $taskslist)) | Out-Null
+            }
         }
+    }
 
+    if ($json) {
         ConvertTo-Json @($testresultlist) -Depth $MaxJsonDepth -Compress
     }
 }
