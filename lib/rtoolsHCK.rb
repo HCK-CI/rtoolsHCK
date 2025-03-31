@@ -892,12 +892,12 @@ class RToolsHCK
   #                          controller
   # +pool+::                 The name of the pool
   # +index_instance_id+::    If true, the result_index is treated as an instance id
-  def zip_test_result_logs(result_index,
-                           test,
-                           target,
-                           project,
-                           machine,
-                           pool,
+  def zip_test_result_logs(result_index:,
+                           test:,
+                           target:,
+                           project:,
+                           machine:,
+                           pool:,
                            index_instance_id: false)
     handle_action_exceptions(__method__) do
       cmd_line = [
