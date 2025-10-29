@@ -1301,13 +1301,15 @@ class RToolsHCK
     result
   end
 
-  def get_custom_command(r_directory, windows_path, custom_cmd)
-    replacement_list = {
+  def install_driver_list(r_directory, windows_path)
+    {
       '@driver_dir@' => r_directory,
       '@inf_path@' => windows_path
     }
+  end
 
-    replace_command(custom_cmd, replacement_list)
+  def get_custom_command(r_directory, windows_path, custom_cmd)
+    replace_command(custom_cmd, install_driver_list(r_directory, windows_path))
   end
 
   def install_driver_command(r_directory, windows_path, install_method, custom_cmd = nil)
@@ -1352,6 +1354,8 @@ class RToolsHCK
     windows_path = "#{r_directory}/#{inf_file}".tr('/', '\\')
     install_certificate(machine, windows_path, sys_file) if install_method.eql?('PNP') || force_install_cert
     machine_run(machine, install_driver_command(r_directory, windows_path, install_method, custom_cmd))
+
+    install_driver_list(r_directory, windows_path)
   end
 
   public
@@ -1383,12 +1387,12 @@ class RToolsHCK
       file = File.join(l_directory, inf_file)
       raise 'Inf file not valid.' unless File.exist?(file)
 
-      do_install_machine_driver_package(machine,
-                                        install_method,
-                                        l_directory,
-                                        inf_file,
-                                        options)
-      @json ? { 'result' => 'Success' } : true
+      driver_info = do_install_machine_driver_package(machine,
+                                                      install_method,
+                                                      l_directory,
+                                                      inf_file,
+                                                      options)
+      @json ? { 'result' => 'Success', 'content' => driver_info } : driver_info
     end
   end
 
