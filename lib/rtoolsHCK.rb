@@ -1350,8 +1350,8 @@ class RToolsHCK
     force_install_cert = options[:force_install_cert]
     sys_file = options[:sys_file]
 
-    r_directory = do_upload_to_machine(machine, l_directory)
-    windows_path = "#{r_directory}/#{inf_file}".tr('/', '\\')
+    r_directory = do_upload_to_machine(machine, l_directory).tr('/', '\\')
+    windows_path = "#{r_directory}\\#{inf_file}"
     install_certificate(machine, windows_path, sys_file) if install_method.eql?('PNP') || force_install_cert
     machine_run(machine, install_driver_command(r_directory, windows_path, install_method, custom_cmd))
 
