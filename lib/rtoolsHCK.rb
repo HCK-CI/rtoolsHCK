@@ -68,6 +68,8 @@ class RToolsHCK
   WINRM_OPERATION_TIMEOUT = 9_999
   WINRM_RECIEVE_TIMEOUT = 99_999
   WINRM_RETRY_INTERVAL = 60
+  WINRM_DEFAULT_PORT = 5985
+  ETHER_DEFAULT_PORT = 4000
 
   private
 
@@ -111,18 +113,22 @@ class RToolsHCK
   #
   # +init_opts+::    Hash that has various initialize options to configure upon
   #                  initializing a RtoolsHCK object:
-  #   :addr          - Controller machine's IP address
-  #                    (default: 127.0.0.1)
-  #   :user          - The user name to use in order to connect via winrm to the
+  #   :addr          - Controller/Studio machine's IP address
+  #                    (default: 192.168.100.1)
+  #                    (default is based on HLK-Setup-Script settings)
+  #   :port          - The port to be used for the WinRM connection
+  #                    (default: 5985)
+  #   :ether_port    - The port to be used for the toolsHCK Ether connection
+  #                    (default: 4000)
+  #   :user          - The user name to use in order to connect via WinRM to the
   #                    guest
   #                    (default: Administrator)
   #   :pass          - The password of the user name specified
   #                    (default: PASSWORD)
-  #   :port          - The port to be used for the connection
-  #                    (default: 4000)
-  #   :winrm_ports   - The clients winrm connection ports as a hash
-  #                    (example: { 'Client' => port, ... })
-  #                    (default: { 'Cl1' => 4001, 'Cl2' => 4002 }
+  #   :clients_addrs - The clients WinRM connection ip and port (default: 5985) as a hash
+  #                    (example: { 'Client' => { addr: '192.168.0.18', port: 4001 }, ... })
+  #                    (default: { 'CL1' => { addr: '192.168.100.2' }, 'CL2' => { addr: '192.168.100.3' } })
+  #                    (default is based on HLK-Setup-Script settings)
   #   :json          - JSON format the output of the action methods
   #                    (default: true)
   #   :timeout       - The action's timeout in seconds
@@ -153,11 +159,15 @@ class RToolsHCK
 
   # init_opts initialization defaults
   INIT_OPTS_DEFAULTS = {
-    addr: '127.0.0.1',
+    addr: '192.168.100.1',
+    port: WINRM_DEFAULT_PORT,
+    ether_port: ETHER_DEFAULT_PORT,
     user: 'Administrator',
     pass: 'PASSWORD',
-    port: 4000,
-    winrm_ports: { 'Cl1' => 4001, 'Cl2' => 4002 },
+    clients_addrs: {
+      'CL1' => { addr: '192.168.100.2', port: WINRM_DEFAULT_PORT },
+      'CL2' => { addr: '192.168.100.3', port: WINRM_DEFAULT_PORT }
+    },
     json: true,
     timeout: 60,
     logger: nil,
@@ -169,6 +179,11 @@ class RToolsHCK
   def validate_init_opts(init_opts)
     extra_keys = (init_opts.keys - INIT_OPTS_DEFAULTS.keys)
     unless extra_keys.empty?
+      if extra_keys.include?(:winrm_ports)
+        raise RToolsHCKError.new('initialize'),
+              'The :winrm_ports option is deprecated, use :clients_addrs instead.'
+      end
+
       raise RToolsHCKError.new('initialize'),
             "Undefined initialization options: #{extra_keys.join(', ')}."
     end
@@ -243,7 +258,8 @@ class RToolsHCK
     @user = init_opts[:user]
     @pass = init_opts[:pass]
     @port = init_opts[:port]
-    @winrm_ports = init_opts[:winrm_ports]
+    @ether_port = init_opts[:ether_port]
+    @clients_addrs = init_opts[:clients_addrs]
     @timeout = init_opts[:timeout]
     @json = init_opts[:json]
     @r_script_file = init_opts[:r_script_file]
@@ -263,7 +279,7 @@ class RToolsHCK
 
   def load_winrm_ps
     logger('debug', 'initialize/winrm') { 'loading winrm shell...' }
-    @connection_options = winrm_options_factory(@addr, 5985, @user, @pass)
+    @connection_options = winrm_options_factory(@addr, @port || WINRM_DEFAULT_PORT, @user, @pass)
     @connection = WinRM::Connection.new(@connection_options)
     @winrm_ps = @connection.shell(:powershell)
     run('date')
@@ -288,8 +304,16 @@ class RToolsHCK
   end
 
   def machine_connection(machine)
-    listen_port = @winrm_ports[machine]
-    options = winrm_options_factory(@addr, listen_port, @user, @pass)
+    clients_addr = @clients_addrs[machine]
+    if clients_addr.nil?
+      raise RToolsHCKError.new('machine_connection'),
+            "Unknown machine '#{machine}'. Available machines: #{@clients_addrs.keys.join(', ')}"
+    end
+
+    options = winrm_options_factory(
+      clients_addr[:addr], clients_addr[:port] || WINRM_DEFAULT_PORT,
+      @user, @pass
+    )
     WinRM::Connection.new(options)
   end
 
@@ -326,7 +350,7 @@ class RToolsHCK
     {
       winrm_connection_options: @connection_options,
       server_addr: @addr,
-      server_port: @port,
+      server_port: @ether_port || ETHER_DEFAULT_PORT,
       operation_timeout: @timeout,
       connection_timeout: TOOLSHCK_CONNECTION_TIMEOUT,
       outp_dir: @outp_dir,
@@ -388,7 +412,10 @@ class RToolsHCK
     log_action_call(action, block.binding)
     handle_exceptions do
       yield
-    rescue RToolsHCKActionError => e
+    # We can have ECONNREFUSED error due to direct connection to
+    # clients instead of proxy through studio
+    # Safety catch this exception, the action wrapper will retry if needed
+    rescue RToolsHCKActionError, Errno::ECONNREFUSED => e
       action_exception_handler(e)
     end
   end
