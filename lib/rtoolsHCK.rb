@@ -1037,7 +1037,9 @@ class RToolsHCK
   #                     i. 'maximum': maximum progress counter value
   #                     i. 'message': progress info message
   #
-  def create_project_package(project, playlist = nil, handler = nil)
+  # +driver_path+::  Provide a driver path to include, (can be nil)
+  # +supplemental_path+:: Provide a supplemental path to include, (can be nil)
+  def create_project_package(project, playlist = nil, handler = nil, driver_path = nil, supplemental_path = nil)
     handle_action_exceptions(__method__) do
       cmd_line = ["createprojectpackage '#{project}' -rph"]
       cmd_line << 'json' if @json
@@ -1046,6 +1048,9 @@ class RToolsHCK
         r_playlist = do_upload_playlist_file(playlist)
         cmd_line << "-playlist #{r_playlist}"
       end
+
+      cmd_line << "-driver '#{driver_path}'" unless driver_path.nil?
+      cmd_line << "-supplemental '#{supplemental_path}'" unless supplemental_path.nil?
 
       handler = dummy_package_progress_info_handler if handler.nil?
       handle_create_project_package(cmd_line.join(' '), handler)
@@ -1175,6 +1180,21 @@ class RToolsHCK
     handle_action_exceptions(__method__) do
       r_directory = do_upload_to_machine(machine, l_directory, r_directory)
       @json ? { 'result' => 'Success', 'content' => r_directory } : r_directory
+    end
+  end
+
+  # == Description
+  #
+  # Upload file/directory to the studio machine.
+  #
+  # == Params:
+  #
+  # +l_path+::       The local file/directory path
+  # +r_path+::       The remote destination path
+  def upload_to_studio(l_path, r_path)
+    handle_action_exceptions(__method__) do
+      @winrm_fs.upload(l_path, r_path)
+      @json ? { 'result' => 'Success' } : true
     end
   end
 
