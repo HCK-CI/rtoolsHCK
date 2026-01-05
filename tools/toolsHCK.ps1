@@ -2076,7 +2076,7 @@ function ziptestresultlogs {
 # CreateProjectPackage
 function createprojectpackage {
     [CmdletBinding()]
-    param([Switch]$help, [Switch]$rph, [String]$playlist, [Parameter(Position=1)][String]$project, [Parameter(Position=2)][String]$package)
+    param([Switch]$help, [Switch]$rph, [String]$playlist, [Parameter(Position=1)][String]$project, [Parameter(Position=2)][String]$package, [String]$driver, [String]$supplemental)
 
     function Usage {
         Write-Output "createprojectpackage:"
@@ -2167,6 +2167,60 @@ function createprojectpackage {
         $PackagePath = $env:TEMP + "\prometheus_packages\" + $(get-date).ToString("dd-MM-yyyy") + "_" + $(get-date).ToString("hh_mm_ss") + "_" + $WntdProject.Name + "." + $Studio + "x"
     }
     $PackageWriter = New-Object Microsoft.Windows.Kits.Hardware.ObjectModel.Submission.PackageWriter $WntdProject
+
+    # Add driver files to package if specified
+    if (-Not [String]::IsNullOrEmpty($driver)) {
+        $driver = [System.IO.Path]::GetFullPath($driver)
+        if (Test-Path $driver) {
+            # Collect all targets from the project
+            $AllTargets = New-Object System.Collections.Generic.List[Microsoft.Windows.Kits.Hardware.ObjectModel.Target]
+            foreach ($Pi in $WntdProject.GetProductInstances()) {
+                foreach ($Target in $Pi.GetTargets()) {
+                    $AllTargets.Add($Target)
+                }
+            }
+
+            if ($AllTargets.Count -gt 0) {
+                # Create ReadOnlyCollection<Target>
+                $TargetArray = [Microsoft.Windows.Kits.Hardware.ObjectModel.Target[]]$AllTargets.ToArray()
+                $TargetList = New-Object 'System.Collections.ObjectModel.ReadOnlyCollection[Microsoft.Windows.Kits.Hardware.ObjectModel.Target]' (,$TargetArray)
+
+                # Create ReadOnlyCollection<String> for locales
+                $LocaleArray = [string[]]@("en-US")
+                $LocaleList = New-Object 'System.Collections.ObjectModel.ReadOnlyCollection[string]' (,$LocaleArray)
+
+                # Create StringCollection instances for out parameters
+                $ErrorMessages = New-Object System.Collections.Specialized.StringCollection
+                $WarningMessages = New-Object System.Collections.Specialized.StringCollection
+
+                # Separate symbols (.pdb files) from the driver directory
+                $symbolPath = Join-Path ([System.IO.Path]::GetTempPath()) ([Guid]::NewGuid().ToString())
+                New-Item -ItemType Directory -Path $symbolPath | Out-Null
+                Get-ChildItem -Path $driver -Filter *.pdb -Recurse | ForEach-Object { Move-Item -Path $_.FullName -Destination $symbolPath -Force }
+
+                $AddDriverResult = $PackageWriter.AddDriver($driver, $symbolPath, $TargetList, $LocaleList, [ref]$ErrorMessages, [ref]$WarningMessages)
+
+                if (-Not $json) {
+                    if ($AddDriverResult) {
+                        Write-Output "Driver added to package from $driver"
+                    } else {
+                        Write-Output "Warning: Driver signability check did not pass"
+                        foreach ($err in $ErrorMessages) { Write-Output "  Error: $err" }
+                        foreach ($warn in $WarningMessages) { Write-Output "  Warning: $warn" }
+                    }
+                }
+            }
+        }
+    }
+
+    # Add supplemental files to package if specified
+    if (-Not [String]::IsNullOrEmpty($supplemental)) {
+        if (Test-Path $supplemental) {
+            $PackageWriter.AddSupplementalFiles($supplemental)
+            if (-Not $json) { Write-Output "Supplemental files added from $supplemental" }
+        }
+    }
+
     if ($rph) { $PackageWriter.SetProgressActionHandler($action) }
     $PackageWriter.Save($PackagePath)
     $PackageWriter.Dispose()
