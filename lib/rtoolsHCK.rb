@@ -388,7 +388,7 @@ class RToolsHCK
     log_action_call(action, block.binding)
     handle_exceptions do
       yield
-    rescue RToolsHCKActionError => e
+    rescue RToolsHCKError => e
       action_exception_handler(e)
     end
   end
