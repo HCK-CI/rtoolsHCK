@@ -59,21 +59,34 @@ class Server
     logger('debug', 'server/initialize') { 'deployed' }
   end
 
+  def start_server_with_log_fetcher
+    log_l_path = "#{@outp_dir}/#{Time.now.strftime('%d-%m-%Y_%H_%M_%S')}_toolsHCK.log"
+    File.open(log_l_path, 'a') do |file|
+      @winrm_ps.send_pipeline_command(process_script) do |message|
+        if message.parsed_data.respond_to?(:output)
+          file.print message.parsed_data.output
+        else
+          file.print message.parsed_data.raw
+        end
+      end
+    end
+  end
+
   def load_toolshck_server
     logger('debug', 'server/initialize') do
       "loading server to listen on port #{@server_port}"
     end
     @log_fetcher = Thread.new do
-      log_l_path = "#{@outp_dir}/#{Time.now.strftime('%d-%m-%Y_%H_%M_%S')}_toolsHCK.log"
-      File.open(log_l_path, 'a') do |file|
-        @winrm_ps.send_pipeline_command(process_script) do |message|
-          if message.parsed_data.respond_to?(:output)
-            file.print message.parsed_data.output
-          else
-            file.print message.parsed_data.raw
-          end
-        end
-      end
+      start_server_with_log_fetcher
+    rescue WinRM::WinRMError, Errno::ECONNRESET, Errno::ECONNREFUSED, Errno::EPIPE => e
+      # Safe to ignore as the most likely cause is that the pipeline was closed
+      # before we finished fetching all messages and we don't want to crash the server
+      # in that case. This can happen when the server is stopped while we're still fetching messages.
+      # WinRMError can be raised instead of Errno::EPIPE when the WinRM connection is closed while we're
+      # still fetching messages, so we need to catch both.
+      # In any case, Ether will restart the server before the next command execution,
+      # so we won't be left with a hanging thread
+      logger('warn', 'server/log_fetcher') { "failed to fetch log message: #{e.message}" }
     end
     logger('debug', 'server/initialize') { 'loaded' }
   end
