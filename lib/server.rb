@@ -15,7 +15,7 @@ class Server
   end
 
   def run_server
-    logger('debug', 'server/run_server') { "on port #{@server_port}" }
+    logger('info', 'server/run_server') { "on port #{@server_port}" }
 
     connection = WinRM::Connection.new(@winrm_connection_options)
 
@@ -48,7 +48,7 @@ class Server
       raise ServerError.new('server/check_script_file'),
             'toolsHCK.ps1 script was not found on remote.'
     end
-    logger('debug', 'server/check_script_file') { 'checked' }
+    logger('info', 'server/check_script_file') { 'checked' }
   end
 
   def deploy_script_file
@@ -75,7 +75,7 @@ class Server
         end
       end
     end
-    logger('debug', 'server/load_toolshck_server') { 'loaded' }
+    logger('info', 'server/load_toolshck_server') { 'loaded' }
   end
 
   def process_script
@@ -94,7 +94,7 @@ class Server
     logger('debug', 'server/close') { 'closing server' }
     @log_fetcher&.kill
   ensure
-    logger('debug', 'server/close') { 'closed' }
+    logger('info', 'server/close') { 'closed' }
     @winrm_ps&.close
   end
 end
