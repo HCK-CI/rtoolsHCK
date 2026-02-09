@@ -76,7 +76,7 @@ class Ether
   def load_ether
     logger('debug', 'ether/load_ether') { 'waiting for client acceptance' }
     wait_for_client_acceptance
-    logger('debug', 'ether/load_ether') { 'connected' }
+    logger('info', 'ether/load_ether') { 'connected' }
     @loaded = true
   end
 
