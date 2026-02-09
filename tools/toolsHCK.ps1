@@ -40,7 +40,7 @@ if ($env:WTTSTDIO -like "*\Hardware Certification Kit\*") {
 }
 
 ##
-$Version = "0.6.2"
+$Version = "0.6.3"
 $MaxJsonDepth = 6
 ##
 
