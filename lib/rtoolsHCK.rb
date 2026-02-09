@@ -262,12 +262,12 @@ class RToolsHCK
   end
 
   def load_winrm_ps
-    logger('debug', 'initialize/winrm') { 'loading winrm shell...' }
+    logger('debug', 'initialize/load_winrm_ps') { 'loading winrm shell...' }
     @connection_options = winrm_options_factory(@addr, 5985, @user, @pass)
     @connection = WinRM::Connection.new(@connection_options)
     @winrm_ps = @connection.shell(:powershell)
     run('date')
-    logger('debug', 'initialize/winrm') { 'winrm shell loaded!' }
+    logger('debug', 'initialize/load_winrm_ps') { 'winrm shell loaded!' }
   end
 
   def check_run_output(run_output, where, cmd)
@@ -306,11 +306,11 @@ class RToolsHCK
   end
 
   def load_winrm_fs
-    logger('debug', 'initialize/winrm') do
+    logger('debug', 'initialize/load_winrm_fs') do
       'creating winrm file manager instance'
     end
     @winrm_fs = WinRM::FS::FileManager.new(@connection)
-    logger('debug', 'initialize/winrm') do
+    logger('debug', 'initialize/load_winrm_fs') do
       'winrm file manager instance created!'
     end
   end
@@ -1438,15 +1438,16 @@ class RToolsHCK
   end
 
   def unload_winrm_ps
-    logger('debug', 'close/winrm') { 'unloading winrm shell...' }
+    logger('debug', 'close/unload_winrm_ps') { 'unloading winrm shell...' }
     @winrm_ps&.close
-    logger('debug', 'close/winrm') { 'winrm shell unloaded!' }
+    logger('debug', 'close/unload_winrm_ps') { 'winrm shell unloaded!' }
   rescue StandardError => e
     log_exception(e, 'warn')
   end
 
   def unload_ether
     @toolshck_ether&.close
+    logger('debug', 'close/unload_ether') { 'ether unloaded!' }
   rescue StandardError => e
     log_exception(e, 'warn')
   end
@@ -1494,7 +1495,7 @@ class RToolsHCK
       unload_toolshck
       shutdown
       unload_winrm_ps
-      logger('debug', 'close') { 'done!' }
+      logger('debug', 'close_and_shutdown') { 'done!' }
       @closed = true
       @json ? { 'result' => 'Success' } : true
     end
