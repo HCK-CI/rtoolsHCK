@@ -191,7 +191,7 @@ class RToolsHCK
   def start_studio_services
     services = %w[WTTServer HLKsvc DTMService WttChangeScheduler]
     services.each { |service_name| start_studio_service(service_name) }
-    logger('debug', 'HLK Services started successfully')
+    logger('info', 'HLK Services started successfully')
   end
 
   def start_client_service(machine, service_name)
@@ -267,7 +267,7 @@ class RToolsHCK
     @connection = WinRM::Connection.new(@connection_options)
     @winrm_ps = @connection.shell(:powershell)
     run('date')
-    logger('debug', 'initialize/load_winrm_ps') { 'winrm shell loaded!' }
+    logger('info', 'initialize/load_winrm_ps') { 'winrm shell loaded!' }
   end
 
   def check_run_output(run_output, where, cmd)
@@ -310,7 +310,7 @@ class RToolsHCK
       'creating winrm file manager instance'
     end
     @winrm_fs = WinRM::FS::FileManager.new(@connection)
-    logger('debug', 'initialize/load_winrm_fs') do
+    logger('info', 'initialize/load_winrm_fs') do
       'winrm file manager instance created!'
     end
   end
@@ -1495,7 +1495,7 @@ class RToolsHCK
       unload_toolshck
       shutdown
       unload_winrm_ps
-      logger('debug', 'close_and_shutdown') { 'done!' }
+      logger('info', 'close_and_shutdown') { 'done!' }
       @closed = true
       @json ? { 'result' => 'Success' } : true
     end
@@ -1508,7 +1508,7 @@ class RToolsHCK
   def close
     handle_action_exceptions(__method__) do
       priv_close
-      logger('debug', 'close') { 'done!' }
+      logger('info', 'close') { 'done!' }
       @closed = true
       @json ? { 'result' => 'Success' } : true
     end
