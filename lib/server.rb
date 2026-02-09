@@ -42,25 +42,25 @@ class Server
   end
 
   def check_script_file
-    logger('debug', 'server/initialize') { 'checking script file on remote' }
+    logger('debug', 'server/check_script_file') { 'checking script file on remote' }
     deploy_script_file
     unless @winrm_fs.exists?(@r_script_file)
-      raise ServerError.new('server/initialize'),
+      raise ServerError.new('server/check_script_file'),
             'toolsHCK.ps1 script was not found on remote.'
     end
-    logger('debug', 'server/initialize') { 'checked' }
+    logger('debug', 'server/check_script_file') { 'checked' }
   end
 
   def deploy_script_file
     tools_hck = File.expand_path('../tools/toolsHCK.ps1', __dir__)
-    logger('debug', 'server/initialize') { 'deploying script file on remote' }
+    logger('debug', 'server/deploy_script_file') { 'deploying script file on remote' }
     @winrm_fs.delete(@r_script_file)
     @winrm_fs.upload(tools_hck, @r_script_file)
-    logger('debug', 'server/initialize') { 'deployed' }
+    logger('debug', 'server/deploy_script_file') { 'deployed' }
   end
 
   def load_toolshck_server
-    logger('debug', 'server/initialize') do
+    logger('debug', 'server/load_toolshck_server') do
       "loading server to listen on port #{@server_port}"
     end
     @log_fetcher = Thread.new do
@@ -75,7 +75,7 @@ class Server
         end
       end
     end
-    logger('debug', 'server/initialize') { 'loaded' }
+    logger('debug', 'server/load_toolshck_server') { 'loaded' }
   end
 
   def process_script
