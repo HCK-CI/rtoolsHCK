@@ -3,5 +3,5 @@
 # rtoolsHCK version extend to class
 class RToolsHCK
   # Current rtoolsHCK version
-  VERSION = '0.6.2'
+  VERSION = '0.6.3'
 end
