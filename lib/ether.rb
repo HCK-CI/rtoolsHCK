@@ -68,15 +68,15 @@ class Ether
   end
 
   def load_server
-    logger('debug', 'ether/initialize') { "server #{@toolshck_server.nil? ? 'is not' : 'already'} initialized" }
+    logger('debug', 'ether/load_server') { "server #{@toolshck_server.nil? ? 'is not' : 'already'} initialized" }
     @toolshck_server ||= Server.new(server_init_opts)
     @toolshck_server.run_server
   end
 
   def load_ether
-    logger('debug', 'ether/initialize') { 'waiting for client acceptance' }
+    logger('debug', 'ether/load_ether') { 'waiting for client acceptance' }
     wait_for_client_acceptance
-    logger('debug', 'ether/initialize') { 'connected' }
+    logger('debug', 'ether/load_ether') { 'connected' }
     @loaded = true
   end
 
@@ -85,11 +85,11 @@ class Ether
 
     unless fetch_output_with_timeout(@connection_timeout).eql?('START')
       e_message = 'something went wrong, didn\'t receive (START)'
-      raise EtherError.new('ether/initialize'), e_message
+      raise EtherError.new('ether/wait_for_client_acceptance'), e_message
     end
   rescue StandardError
     e_message = 'waiting for the client acceptance timed out'
-    raise EtherError.new('ether/initialize'), e_message
+    raise EtherError.new('ether/wait_for_client_acceptance'), e_message
   end
 
   def connect
