@@ -77,10 +77,12 @@ function New-PackageProgressInfo($current, $maximum, $message) {
 
 #
 # ProjectPackage
-function New-ProjectPackage($name, $projectpackagepath) {
+function New-ProjectPackage($name, $projectpackagepath, $iserror, $actionMessages) {
     $projectpackage = New-Object PSObject
     $projectpackage | Add-Member -type NoteProperty -Name name -Value $name
     $projectpackage | Add-Member -type NoteProperty -Name projectpackagepath -Value $projectpackagepath
+    $projectpackage | Add-Member -type NoteProperty -Name iserror -Value $iserror
+    $projectpackage | Add-Member -type NoteProperty -Name messages -Value $actionMessages
     return $projectpackage
 }
 
@@ -2151,11 +2153,18 @@ function createprojectpackage {
         }
     }
 
+    $actionMessages = @()
+    $iserror = $false
+
     $PlaylistManager = $null
     if (-Not [String]::IsNullOrEmpty($playlist)) {
         $PlaylistManager = New-Object Microsoft.Windows.Kits.Hardware.ObjectModel.PlaylistManager($WntdProject)
 
-        if (-Not $json) { Write-Output "Loading playlist $($playlist)..." }
+        if (-Not $json) {
+            Write-Output "Loading playlist $($playlist)..."
+        } else {
+            $actionMessages += "Loading playlist $($playlist)..."
+        }
 
         $PlaylistManager.LoadPlaylist($playlist) | Out-Null
     }
@@ -2204,9 +2213,19 @@ function createprojectpackage {
                     if ($AddDriverResult) {
                         Write-Output "Driver added to package from $driver"
                     } else {
+                        $iserror = $true
                         Write-Output "Warning: Driver signability check did not pass"
                         foreach ($err in $ErrorMessages) { Write-Output "  Error: $err" }
                         foreach ($warn in $WarningMessages) { Write-Output "  Warning: $warn" }
+                    }
+                } else {
+                    if ($AddDriverResult) {
+                        $actionMessages += "Driver added to package from $driver"
+                    } else {
+                        $iserror = $true
+                        $actionMessages += "Warning: Driver signability check did not pass"
+                        foreach ($err in $ErrorMessages) { $actionMessages += "Error: $err" }
+                        foreach ($warn in $WarningMessages) { $actionMessages += "Warning: $warn" }
                     }
                 }
             }
@@ -2217,7 +2236,11 @@ function createprojectpackage {
     if (-Not [String]::IsNullOrEmpty($supplemental)) {
         if (Test-Path $supplemental) {
             $PackageWriter.AddSupplementalFiles($supplemental)
-            if (-Not $json) { Write-Output "Supplemental files added from $supplemental" }
+            if (-Not $json) {
+                Write-Output "Supplemental files added from $supplemental"
+            } else {
+                $actionMessages += "Supplemental files added from $supplemental"
+            }
         }
     }
 
@@ -2226,7 +2249,11 @@ function createprojectpackage {
     $PackageWriter.Dispose()
 
     if ($PlaylistManager) {
-        if (-Not $json) { Write-Output "Unloading playlist" }
+        if (-Not $json) {
+            Write-Output "Unloading playlist"
+        } else {
+            $actionMessages += "Unloading playlist"
+        }
 
         $PlaylistManager.UnloadPlaylist()
     }
@@ -2234,7 +2261,7 @@ function createprojectpackage {
     if (-Not $json) {
         Write-Output "Packaged to $($PackagePath)..."
     } else {
-        @(New-ProjectPackage $WntdProject.Name $PackagePath) | ConvertTo-Json -Compress
+        @(New-ProjectPackage $WntdProject.Name $PackagePath $iserror $actionMessages) | ConvertTo-Json -Compress
     }
 }
 #
