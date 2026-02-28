@@ -1039,7 +1039,10 @@ class RToolsHCK
   #
   # +driver_path+::  Provide a driver path to include, (can be nil)
   # +supplemental_path+:: Provide a supplemental path to include, (can be nil)
-  def create_project_package(project, playlist = nil, handler = nil, driver_path = nil, supplemental_path = nil)
+  # +remove_driver_signatures+:: If true, remove driver signatures before
+  #                              packaging (default: false)
+  def create_project_package(project, playlist = nil, handler = nil, driver_path = nil, supplemental_path = nil,
+                             remove_driver_signatures: false)
     handle_action_exceptions(__method__) do
       cmd_line = ["createprojectpackage '#{project}' -rph"]
       cmd_line << 'json' if @json
@@ -1051,6 +1054,7 @@ class RToolsHCK
 
       cmd_line << "-driver '#{driver_path}'" unless driver_path.nil?
       cmd_line << "-supplemental '#{supplemental_path}'" unless supplemental_path.nil?
+      cmd_line << '-removedriversignatures' if remove_driver_signatures
 
       handler = dummy_package_progress_info_handler if handler.nil?
       handle_create_project_package(cmd_line.join(' '), handler)

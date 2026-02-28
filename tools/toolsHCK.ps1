@@ -2078,7 +2078,7 @@ function ziptestresultlogs {
 # CreateProjectPackage
 function createprojectpackage {
     [CmdletBinding()]
-    param([Switch]$help, [Switch]$rph, [String]$playlist, [Parameter(Position=1)][String]$project, [Parameter(Position=2)][String]$package, [String]$driver, [String]$supplemental)
+    param([Switch]$help, [Switch]$rph, [Switch]$removedriversignatures, [String]$playlist, [Parameter(Position=1)][String]$project, [Parameter(Position=2)][String]$package, [String]$driver, [String]$supplemental)
 
     function Usage {
         Write-Output "createprojectpackage:"
@@ -2089,7 +2089,7 @@ function createprojectpackage {
         Write-Output ""
         Write-Output "Usage:"
         Write-Output ""
-        Write-Output "createprojectpackage <projectname> [<package>] [-help] [-playlist] [-driver <path>] [-supplemental <path>] [-rph]"
+        Write-Output "createprojectpackage <projectname> [<package>] [-help] [-playlist] [-driver <path>] [-supplemental <path>] [-rph] [-removedriversignatures]"
         Write-Output ""
         Write-Output "Any parameter in [] is optional."
         Write-Output ""
@@ -2106,6 +2106,8 @@ function createprojectpackage {
         Write-Output " supplemental = Path to supplemental files to add to the package."
         Write-Output ""
         Write-Output "        rph = Enable progress action handler (interactive package progress)."
+        Write-Output ""
+        Write-Output "removedriversignatures = Remove driver signatures before packaging (default: do not remove)."
         Write-Output ""
         Write-Output "With [json], output is JSON with name, projectpackagepath, iserror, and messages."
         Write-Output ""
@@ -2214,6 +2216,27 @@ function createprojectpackage {
                 $symbolPath = Join-Path ([System.IO.Path]::GetTempPath()) ([Guid]::NewGuid().ToString())
                 New-Item -ItemType Directory -Path $symbolPath | Out-Null
                 Get-ChildItem -Path $driver -Filter *.pdb -Recurse | ForEach-Object { Move-Item -Path $_.FullName -Destination $symbolPath -Force }
+
+                # Remove driver signatures before packaging to avoid embedded company signatures (only when -removeDriverSignatures)
+                if ($removedriversignatures) {
+                    Get-ChildItem -Path $driver -Include *.sys, *.dll, *.exe -Recurse | ForEach-Object {
+                        if (-Not $json) {
+                            Write-Output "Removing signature from file '$($_.FullName)' before packaging"
+                        } else {
+                            $actionMessages += "Removing signature from file '$($_.FullName)' before packaging"
+                        }
+
+                        $process = Start-Process -Wait -FilePath "$env:WTTSTDIO\..\Tests\amd64\Signtool.exe" -ArgumentList 'remove', '/s', $_.FullName -PassThru
+                        if ($process.ExitCode -ne 0) {
+                            $iserror = $true
+                            if (-Not $json) {
+                                Write-Output "Warning: Failed to remove signature from file '$($_.FullName)'. Signtool exit code: $($process.ExitCode)"
+                            } else {
+                                $actionMessages += "Warning: Failed to remove signature from file '$($_.FullName)'. Signtool exit code: $($process.ExitCode)"
+                            }
+                        }
+                    }
+                }
 
                 $AddDriverResult = $PackageWriter.AddDriver($driver, $symbolPath, $TargetList, $LocaleList, [ref]$ErrorMessages, [ref]$WarningMessages)
 
