@@ -2279,16 +2279,6 @@ function createprojectpackage {
     $PackageWriter.Save($PackagePath)
     $PackageWriter.Dispose()
 
-    if ($PlaylistManager) {
-        if (-Not $json) {
-            Write-Output "Unloading playlist"
-        } else {
-            $actionMessages += "Unloading playlist"
-        }
-
-        $PlaylistManager.UnloadPlaylist()
-    }
-
     if (-Not $json) {
         Write-Output "Packaged to $($PackagePath)..."
     } else {
