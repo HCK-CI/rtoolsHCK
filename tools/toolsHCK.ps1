@@ -901,13 +901,18 @@ function parsescheduleoptions {
     [CmdletBinding()]
     param([Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption] $scheduleoptions)
 
-    $ParsedScheduleOptions = [System.Collections.Generic.List[object]]::new()
-
-    if (($scheduleoptions -band [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::RequiresMultipleMachines) -eq [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::RequiresMultipleMachines) { $ParsedScheduleOptions.Add([Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::RequiresMultipleMachines.ToString()) }
-    if (($scheduleoptions -band [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ScheduleOnAllTargets) -eq [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ScheduleOnAllTargets) { $ParsedScheduleOptions.Add([Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ScheduleOnAllTargets.ToString()) }
-    if (($scheduleoptions -band [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ScheduleOnAnyTarget) -eq [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ScheduleOnAnyTarget) { $ParsedScheduleOptions.Add([Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ScheduleOnAnyTarget.ToString()) }
-    if (($scheduleoptions -band [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ConsolidateScheduleAcrossTargets) -eq [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ConsolidateScheduleAcrossTargets) { $ParsedScheduleOptions.Add([Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ConsolidateScheduleAcrossTargets.ToString()) }
-
+    $do = [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]
+    $ParsedScheduleOptions = [System.Collections.Generic.List[string]]::new()
+    foreach ($flag in @(
+            $do::RequiresMultipleMachines,
+            $do::ScheduleOnAllTargets,
+            $do::ScheduleOnAnyTarget,
+            $do::ConsolidateScheduleAcrossTargets
+        )) {
+        if (($scheduleoptions -band $flag) -eq $flag) {
+            $ParsedScheduleOptions.Add($flag.ToString())
+        }
+    }
     return ,$ParsedScheduleOptions
 }
 
