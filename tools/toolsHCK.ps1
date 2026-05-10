@@ -1917,9 +1917,12 @@ function sendtcpsocket {
     [CmdletBinding()]
     param([String]$data)
 
-    $LengthString = "$($data.Length.ToString())$([Environment]::NewLine)"
-    $TCPStream.Write([System.Text.Encoding]::Ascii.GetBytes($LengthString), 0, $LengthString.Length)
-    $TCPStream.Write([System.Text.Encoding]::Ascii.GetBytes($data), 0, $data.Length)
+    $enc = [System.Text.UTF8Encoding]::new($false)
+    $payloadBytes = $enc.GetBytes($data)
+    $LengthString = "$($payloadBytes.Length)$([Environment]::NewLine)"
+    $lenBytes = $enc.GetBytes($LengthString)
+    $TCPStream.Write($lenBytes, 0, $lenBytes.Length)
+    $TCPStream.Write($payloadBytes, 0, $payloadBytes.Length)
 }
 #
 # ReceiveTCPSocket
@@ -2124,7 +2127,7 @@ if ($server) {
     }
 
     $TCPStream = $TCPClient.GetStream()
-    $TCPStreamReader = New-Object System.IO.StreamReader $TCPStream, System.Text.ASCIIEncoding
+    $TCPStreamReader = New-Object System.IO.StreamReader($TCPStream, [System.Text.UTF8Encoding]::new($false), $false)
     $PollingSleep = [Math]::Ceiling(1000 / $polling)
 
     Write-Host (gettimestamp) "sending START"
