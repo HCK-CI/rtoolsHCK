@@ -45,7 +45,7 @@ $MaxJsonDepth = 6
 ##
 
 #
-# Loadinf HCK\HLK libraries
+# Loading HCK\HLK libraries
 try {
     if ([string]::IsNullOrEmpty($env:WTTSTDIO)) {
         throw "WTTSTDIO is not set; run toolsHCK from an environment where Windows HLK/HCK Studio defines this variable."
