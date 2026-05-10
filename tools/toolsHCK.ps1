@@ -2089,7 +2089,7 @@ Write-Output "Opening connection file $ConnectFileName"
 $ConnectFile = [xml](Get-Content $ConnectFileName)
 
 $ControllerName = $ConnectFile.Connection.GetAttribute("Server")
-$DatabaseName = $connectFile.Connection.GetAttribute("Source")
+$DatabaseName = $ConnectFile.Connection.GetAttribute("Source")
 
 Write-Output "Connecting to $ControllerName..."
 $Manager = New-Object Microsoft.Windows.Kits.Hardware.ObjectModel.DBConnection.DatabaseProjectManager -Args $ControllerName, $DatabaseName
