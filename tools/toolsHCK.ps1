@@ -2472,7 +2472,6 @@ while($true) {
 
     $cmd = $cmdlinelist[0]
     $cmdlinelist.RemoveAt(0)
-    $cmdargs = $cmdlinelist -join " "
 
     if ([String]::IsNullOrEmpty($cmd) -or $cmd -eq "help") {
         $output = Usage
@@ -2488,7 +2487,9 @@ while($true) {
         $output = "pong"
     } elseif ($toolsHCKlist.Contains($cmd)) {
         try {
-            $actionoutput = Invoke-Expression "$cmd $cmdargs"
+            $commandInfo = Get-Command -Name $cmd -CommandType Function -ErrorAction Stop
+            $invokeArgs = @([string[]]@($cmdlinelist.ToArray()))
+            $actionoutput = & $commandInfo @invokeArgs
             if (-Not $json) {
                 $output = $actionoutput
             } else {
