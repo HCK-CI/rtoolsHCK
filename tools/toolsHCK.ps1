@@ -46,11 +46,22 @@ $MaxJsonDepth = 6
 
 #
 # Loadinf HCK\HLK libraries
-[System.Reflection.Assembly]::LoadFrom($env:WTTSTDIO + "\microsoft.windows.kits.hardware.filterengine.dll") | Out-Null
-[System.Reflection.Assembly]::LoadFrom($env:WTTSTDIO + "\microsoft.windows.kits.hardware.objectmodel.dll") | Out-Null
-[System.Reflection.Assembly]::LoadFrom($env:WTTSTDIO + "\microsoft.windows.kits.hardware.objectmodel.dbconnection.dll") | Out-Null
-[System.Reflection.Assembly]::LoadFrom($env:WTTSTDIO + "\microsoft.windows.kits.hardware.objectmodel.submission.dll") | Out-Null
-[System.Reflection.Assembly]::LoadFrom($env:WTTSTDIO + "\microsoft.windows.kits.hardware.objectmodel.submission.package.dll") | Out-Null
+try {
+    if ([string]::IsNullOrEmpty($env:WTTSTDIO)) {
+        throw "WTTSTDIO is not set; run toolsHCK from an environment where Windows HLK/HCK Studio defines this variable."
+    }
+    foreach ($dll in @(
+            'microsoft.windows.kits.hardware.filterengine.dll',
+            'microsoft.windows.kits.hardware.objectmodel.dll',
+            'microsoft.windows.kits.hardware.objectmodel.dbconnection.dll',
+            'microsoft.windows.kits.hardware.objectmodel.submission.dll',
+            'microsoft.windows.kits.hardware.objectmodel.submission.package.dll')) {
+        [System.Reflection.Assembly]::LoadFrom((Join-Path $env:WTTSTDIO $dll)) | Out-Null
+    }
+} catch {
+    Write-Error "Failed to load HLK/HCK Studio assemblies: $($_.Exception.Message)"
+    exit 1
+}
 
 #
 # Task
