@@ -224,6 +224,32 @@ function New-ActionResult($content, $exception = $nil) {
     return $actionresult
 }
 
+# Shared action helpers (interactive vs JSON mode, nested Usage blocks).
+function Test-ToolsHCKHelpExit {
+    param([switch]$Help, [Parameter(Mandatory)][scriptblock]$ShowUsage)
+    if (-not $Help) { return $false }
+    if (-not $json) {
+        & $ShowUsage
+        return $true
+    }
+    throw "Help requested, ignoring..."
+}
+
+function Assert-ToolsHCKNonEmptyParam {
+    param(
+        [AllowEmptyString()][string]$Value,
+        [Parameter(Mandatory)][string]$MissingMessage,
+        [Parameter(Mandatory)][scriptblock]$ShowUsage
+    )
+    if (-not [string]::IsNullOrEmpty($Value)) { return $true }
+    if (-not $json) {
+        Write-Output "WARNING: $MissingMessage"
+        & $ShowUsage
+        return $false
+    }
+    throw $MissingMessage
+}
+
 # ------------------------------------------------------------ #
 # Functions, one for each action the script is able to perform #
 # ------------------------------------------------------------ #
@@ -250,9 +276,7 @@ function listpools {
         Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
     }
 
-    if ($help) {
-        if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
-    }
+    if (Test-ToolsHCKHelpExit -Help:$help -ShowUsage { Usage }) { return }
 
     if (-Not $json) {
         foreach ($Pool in $RootPool.GetChildPools()) {
@@ -316,18 +340,9 @@ function createpool {
         Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
     }
 
-    if ($help) {
-        if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
-    }
+    if (Test-ToolsHCKHelpExit -Help:$help -ShowUsage { Usage }) { return }
 
-    if ([String]::IsNullOrEmpty($pool)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a pool's name."
-            Usage; return
-        } else {
-            throw "Please provide a pool's name."
-        }
-    }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
 
     if (-Not $json) { Write-Output "Creating pool $pool in Root pool." }
     $RootPool.CreateChildPool($pool) | Out-Null
@@ -357,18 +372,9 @@ function deletepool {
         Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
     }
 
-    if ($help) {
-        if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
-    }
+    if (Test-ToolsHCKHelpExit -Help:$help -ShowUsage { Usage }) { return }
 
-    if ([String]::IsNullOrEmpty($pool)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a pool's name."
-            Usage; return
-        } else {
-            throw "Please provide a pool's name."
-        }
-    }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
 
     if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Provided pool's name is not valid, aborting..."}
 
@@ -404,34 +410,11 @@ function movemachine {
         Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
     }
 
-    if ($help) {
-        if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
-    }
+    if (Test-ToolsHCKHelpExit -Help:$help -ShowUsage { Usage }) { return }
 
-    if ([String]::IsNullOrEmpty($machine)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a machine's name."
-            Usage; return
-        } else {
-            throw "Please provide a machine's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($from)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a source pool's name."
-            Usage; return
-        } else {
-            throw "Please provide a source pool's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($to)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a destination pool's name."
-            Usage; return
-        } else {
-            throw "Please provide a destination pool's name."
-        }
-    }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $machine -MissingMessage "Please provide a machine's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $from -MissingMessage "Please provide a source pool's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $to -MissingMessage "Please provide a destination pool's name." -ShowUsage { Usage })) { return }
 
     if (-Not ($WntdFromPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $from })) { throw "Provided source pool's name is not valid, aborting..." }
     if (-Not ($WntdToPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $to })) { throw "Provided destination pool's name is not valid, aborting..." }
@@ -471,34 +454,11 @@ function setmachinestate {
         Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
     }
 
-    if ($help) {
-        if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
-    }
+    if (Test-ToolsHCKHelpExit -Help:$help -ShowUsage { Usage }) { return }
 
-    if ([String]::IsNullOrEmpty($machine)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a machine's name."
-            Usage; return
-        } else {
-            throw "Please provide a machine's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($pool)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a pool's name."
-            Usage; return
-        } else {
-            throw "Please provide a pool's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($state)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a state."
-            Usage; return
-        } else {
-            throw "Please provide a state."
-        }
-    }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $machine -MissingMessage "Please provide a machine's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $state -MissingMessage "Please provide a state." -ShowUsage { Usage })) { return }
 
     if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Provided pool's name is not valid, aborting..." }
     if (-Not ($WntdMachine = $WntdPool.GetMachines() | Where-Object { $_.Name -eq $machine })) { throw "Provided machines's name is not valid, aborting..." }
@@ -544,26 +504,10 @@ function deletemachine {
         Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
     }
 
-    if ($help) {
-        if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
-    }
+    if (Test-ToolsHCKHelpExit -Help:$help -ShowUsage { Usage }) { return }
 
-    if ([String]::IsNullOrEmpty($machine)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a machine's name."
-            Usage; return
-        } else {
-            throw "Please provide a machine's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($pool)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a pool's name."
-            Usage; return
-        } else {
-            throw "Please provide a pool's name."
-        }
-    }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $machine -MissingMessage "Please provide a machine's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
 
     if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Provided pool's name is not valid, aborting..." }
 
@@ -598,26 +542,10 @@ function listmachinetargets {
         Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
     }
 
-    if ($help) {
-        if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
-    }
+    if (Test-ToolsHCKHelpExit -Help:$help -ShowUsage { Usage }) { return }
 
-    if ([String]::IsNullOrEmpty($machine)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a machine's name."
-            Usage; return
-        } else {
-            throw "Please provide a machine's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($pool)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a pool's name."
-            Usage; return
-        } else {
-            throw "Please provide a pool's name."
-        }
-    }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $machine -MissingMessage "Please provide a machine's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
 
     if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Did not find pool $pool in Root pool, aborting..." }
     if (-Not ($WntdMachine = $WntdPool.GetMachines()| Where-Object { $_.Name -eq $machine })) { throw "The test machine was not found, aborting..." }
@@ -667,9 +595,7 @@ function listprojects {
         Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
     }
 
-    if ($help) {
-        if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
-    }
+    if (Test-ToolsHCKHelpExit -Help:$help -ShowUsage { Usage }) { return }
 
     if (-Not $json) {
         foreach ($ProjectName in $Manager.GetProjectNames()) {
@@ -747,18 +673,9 @@ function createproject {
         Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
     }
 
-    if ($help) {
-        if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
-    }
+    if (Test-ToolsHCKHelpExit -Help:$help -ShowUsage { Usage }) { return }
 
-    if ([String]::IsNullOrEmpty($project)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a project's name."
-            Usage; return
-        } else {
-            throw "Please provide a project's name."
-        }
-    }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $project -MissingMessage "Please provide a project's name." -ShowUsage { Usage })) { return }
 
     if ($Manager.GetProjectNames().Contains($project)) {
         throw "A project with the name $($project) already exists, aborting..."
@@ -792,18 +709,9 @@ function deleteproject {
         Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
     }
 
-    if ($help) {
-        if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
-    }
+    if (Test-ToolsHCKHelpExit -Help:$help -ShowUsage { Usage }) { return }
 
-    if ([String]::IsNullOrEmpty($project)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a project's name."
-            Usage; return
-        } else {
-            throw "Please provide a project's name."
-        }
-    }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $project -MissingMessage "Please provide a project's name." -ShowUsage { Usage })) { return }
 
     if (-Not $json) { Write-Output "Deleting project $project..." }
     $Manager.DeleteProject($project)
@@ -840,42 +748,12 @@ function createprojecttarget {
         Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
     }
 
-    if ($help) {
-        if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
-    }
+    if (Test-ToolsHCKHelpExit -Help:$help -ShowUsage { Usage }) { return }
 
-    if ([String]::IsNullOrEmpty($target)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a target's key."
-            Usage; return
-        } else {
-            throw "Please provide a target's key."
-        }
-    }
-    if ([String]::IsNullOrEmpty($project)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a project's name."
-            Usage; return
-        } else {
-            throw "Please provide a project's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($machine)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a machine's name."
-            Usage; return
-        } else {
-            throw "Please provide a machine's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($pool)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a pool's name."
-            Usage; return
-        } else {
-            throw "Please provide a pool's name."
-        }
-    }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $target -MissingMessage "Please provide a target's key." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $project -MissingMessage "Please provide a project's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $machine -MissingMessage "Please provide a machine's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
 
     if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Did not find pool $pool in Root pool, aborting..." }
     if (-Not ($WntdMachine = $WntdPool.GetMachines()| Where-Object { $_.Name -eq $machine })) { throw "The test machine was not found, aborting..." }
@@ -967,42 +845,12 @@ function deleteprojecttarget {
         Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
     }
 
-    if ($help) {
-        if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
-    }
+    if (Test-ToolsHCKHelpExit -Help:$help -ShowUsage { Usage }) { return }
 
-    if ([String]::IsNullOrEmpty($target)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a target's key."
-            Usage; return
-        } else {
-            throw "Please provide a target's key."
-        }
-    }
-    if ([String]::IsNullOrEmpty($project)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a project's name."
-            Usage; return
-        } else {
-            throw "Please provide a project's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($machine)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a machine's name."
-            Usage; return
-        } else {
-            throw "Please provide a machine's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($pool)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a pool's name."
-            Usage; return
-        } else {
-            throw "Please provide a pool's name."
-        }
-    }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $target -MissingMessage "Please provide a target's key." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $project -MissingMessage "Please provide a project's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $machine -MissingMessage "Please provide a machine's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
 
     if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Did not find pool $pool in Root pool, aborting..." }
     if (-Not ($WntdMachine = $WntdPool.GetMachines()| Where-Object { $_.Name -eq $machine })) { throw "The test machine was not found, aborting..." }
@@ -1090,42 +938,12 @@ function listtests {
         Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
     }
 
-    if ($help) {
-        if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
-    }
+    if (Test-ToolsHCKHelpExit -Help:$help -ShowUsage { Usage }) { return }
 
-    if ([String]::IsNullOrEmpty($target)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a target's key."
-            Usage; return
-        } else {
-            throw "Please provide a target's key."
-        }
-    }
-    if ([String]::IsNullOrEmpty($project)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a project's name."
-            Usage; return
-        } else {
-            throw "Please provide a project's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($machine)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a machine's name."
-            Usage; return
-        } else {
-            throw "Please provide a machine's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($pool)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a pool's name."
-            Usage; return
-        } else {
-            throw "Please provide a pool's name."
-        }
-    }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $target -MissingMessage "Please provide a target's key." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $project -MissingMessage "Please provide a project's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $machine -MissingMessage "Please provide a machine's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
     if ((-Not [String]::IsNullOrEmpty($playlist)) -and $Studio -ne "hlk") {
         if (-Not $json) {
             Write-Output "WARNING: Playlist provided but HCK doesn't support playlists, aborting..."
@@ -1242,26 +1060,10 @@ function loadplaylist {
         Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
     }
 
-    if ($help) {
-        if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
-    }
+    if (Test-ToolsHCKHelpExit -Help:$help -ShowUsage { Usage }) { return }
 
-    if ([String]::IsNullOrEmpty($project)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a project's name."
-            Usage; return
-        } else {
-            throw "Please provide a project's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($playlist)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a path to a playlist file."
-            Usage; return
-        } else {
-            throw "Please provide a path to a playlist file."
-        }
-    }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $project -MissingMessage "Please provide a project's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $playlist -MissingMessage "Please provide a path to a playlist file." -ShowUsage { Usage })) { return }
     if ($Studio -ne "hlk") {
         if (-Not $json) {
             Write-Output "WARNING: HCK doesn't support playlists, aborting..."
@@ -1313,50 +1115,13 @@ function gettestinfo {
         Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
     }
 
-    if ($help) {
-        if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
-    }
+    if (Test-ToolsHCKHelpExit -Help:$help -ShowUsage { Usage }) { return }
 
-    if ([String]::IsNullOrEmpty($test)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a test's id."
-            Usage; return
-        } else {
-            throw "Please provide a test's id."
-        }
-    }
-    if ([String]::IsNullOrEmpty($target)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a target's key."
-            Usage; return
-        } else {
-            throw "Please provide a target's key."
-        }
-    }
-    if ([String]::IsNullOrEmpty($project)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a project's name."
-            Usage; return
-        } else {
-            throw "Please provide a project's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($machine)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a machine's name."
-            Usage; return
-        } else {
-            throw "Please provide a machine's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($pool)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a pool's name."
-            Usage; return
-        } else {
-            throw "Please provide a pool's name."
-        }
-    }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $test -MissingMessage "Please provide a test's id." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $target -MissingMessage "Please provide a target's key." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $project -MissingMessage "Please provide a project's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $machine -MissingMessage "Please provide a machine's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
 
     if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Did not find pool $pool in Root pool, aborting..." }
     if (-Not ($WntdMachine = $WntdPool.GetMachines()| Where-Object { $_.Name -eq $machine })) { throw "The test machine was not found, aborting..." }
@@ -1456,50 +1221,13 @@ function queuetest {
         Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
     }
 
-    if ($help) {
-        if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
-    }
+    if (Test-ToolsHCKHelpExit -Help:$help -ShowUsage { Usage }) { return }
 
-    if ([String]::IsNullOrEmpty($test)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a test's id."
-            Usage; return
-        } else {
-            throw "Please provide a test's id."
-        }
-    }
-    if ([String]::IsNullOrEmpty($target)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a target's key."
-            Usage; return
-        } else {
-            throw "Please provide a target's key."
-        }
-    }
-    if ([String]::IsNullOrEmpty($project)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a project's name."
-            Usage; return
-        } else {
-            throw "Please provide a project's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($machine)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a machine's name."
-            Usage; return
-        } else {
-            throw "Please provide a machine's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($pool)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a pool's name."
-            Usage; return
-        } else {
-            throw "Please provide a pool's name."
-        }
-    }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $test -MissingMessage "Please provide a test's id." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $target -MissingMessage "Please provide a target's key." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $project -MissingMessage "Please provide a project's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $machine -MissingMessage "Please provide a machine's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
 
     if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Did not find pool $pool in Root pool, aborting..." }
     if (-Not ($WntdMachine = $WntdPool.GetMachines()| Where-Object { $_.Name -eq $machine })) { throw "The test machine was not found, aborting..." }
@@ -1583,18 +1311,9 @@ function applyprojectfilters {
         Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
     }
 
-    if ($help) {
-        if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
-    }
+    if (Test-ToolsHCKHelpExit -Help:$help -ShowUsage { Usage }) { return }
 
-    if ([String]::IsNullOrEmpty($project)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a project's name."
-            Usage; return
-        } else {
-            throw "Please provide a project's name."
-        }
-    }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $project -MissingMessage "Please provide a project's name." -ShowUsage { Usage })) { return }
 
     if (-Not ($Manager.GetProjectNames().Contains($project))) { throw "No project with the given name was found, aborting..." } else { $WntdProject = $Manager.GetProject($project) }
 
@@ -1649,58 +1368,14 @@ function applytestresultfilters {
         Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
     }
 
-    if ($help) {
-        if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
-    }
+    if (Test-ToolsHCKHelpExit -Help:$help -ShowUsage { Usage }) { return }
 
-    if ([String]::IsNullOrEmpty($result)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a test result's index."
-            Usage; return
-        } else {
-            throw "Please provide a test result's index."
-        }
-    }
-    if ([String]::IsNullOrEmpty($test)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a test's id."
-            Usage; return
-        } else {
-            throw "Please provide a test's id."
-        }
-    }
-    if ([String]::IsNullOrEmpty($target)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a target's key."
-            Usage; return
-        } else {
-            throw "Please provide a target's key."
-        }
-    }
-    if ([String]::IsNullOrEmpty($project)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a project's name."
-            Usage; return
-        } else {
-            throw "Please provide a project's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($machine)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a machine's name."
-            Usage; return
-        } else {
-            throw "Please provide a machine's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($pool)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a pool's name."
-            Usage; return
-        } else {
-            throw "Please provide a pool's name."
-        }
-    }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $result -MissingMessage "Please provide a test result's index." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $test -MissingMessage "Please provide a test's id." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $target -MissingMessage "Please provide a target's key." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $project -MissingMessage "Please provide a project's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $machine -MissingMessage "Please provide a machine's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
 
     if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Did not find pool $pool in Root pool, aborting..." }
     if (-Not ($WntdMachine = $WntdPool.GetMachines()| Where-Object { $_.Name -eq $machine })) { throw "The test machine was not found, aborting..." }
@@ -1780,42 +1455,12 @@ function listtestresults {
         Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
     }
 
-    if ($help) {
-        if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
-    }
+    if (Test-ToolsHCKHelpExit -Help:$help -ShowUsage { Usage }) { return }
 
-    if ([String]::IsNullOrEmpty($target)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a target's key."
-            Usage; return
-        } else {
-            throw "Please provide a target's key."
-        }
-    }
-    if ([String]::IsNullOrEmpty($project)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a project's name."
-            Usage; return
-        } else {
-            throw "Please provide a project's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($machine)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a machine's name."
-            Usage; return
-        } else {
-            throw "Please provide a machine's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($pool)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a pool's name."
-            Usage; return
-        } else {
-            throw "Please provide a pool's name."
-        }
-    }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $target -MissingMessage "Please provide a target's key." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $project -MissingMessage "Please provide a project's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $machine -MissingMessage "Please provide a machine's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
 
     if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Did not find pool $pool in Root pool, aborting..." }
     if (-Not ($WntdMachine = $WntdPool.GetMachines()| Where-Object { $_.Name -eq $machine })) { throw "The test machine was not found, aborting..." }
@@ -1968,58 +1613,14 @@ function ziptestresultlogs {
         Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
     }
 
-    if ($help) {
-        if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
-    }
+    if (Test-ToolsHCKHelpExit -Help:$help -ShowUsage { Usage }) { return }
 
-    if ([String]::IsNullOrEmpty($resultindex)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a test result's index."
-            Usage; return
-        } else {
-            throw "Please provide a test result's index."
-        }
-    }
-    if ([String]::IsNullOrEmpty($test)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a test's id."
-            Usage; return
-        } else {
-            throw "Please provide a test's id."
-        }
-    }
-    if ([String]::IsNullOrEmpty($target)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a target's key."
-            Usage; return
-        } else {
-            throw "Please provide a target's key."
-        }
-    }
-    if ([String]::IsNullOrEmpty($project)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a project's name."
-            Usage; return
-        } else {
-            throw "Please provide a project's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($machine)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a machine's name."
-            Usage; return
-        } else {
-            throw "Please provide a machine's name."
-        }
-    }
-    if ([String]::IsNullOrEmpty($pool)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a pool's name."
-            Usage; return
-        } else {
-            throw "Please provide a pool's name."
-        }
-    }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $resultindex -MissingMessage "Please provide a test result's index." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $test -MissingMessage "Please provide a test's id." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $target -MissingMessage "Please provide a target's key." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $project -MissingMessage "Please provide a project's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $machine -MissingMessage "Please provide a machine's name." -ShowUsage { Usage })) { return }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
 
     if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Did not find pool $pool in Root pool, aborting..." }
     if (-Not ($WntdMachine = $WntdPool.GetMachines()| Where-Object { $_.Name -eq $machine })) { throw "The test machine was not found, aborting..." }
@@ -2114,18 +1715,9 @@ function createprojectpackage {
         Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
     }
 
-    if ($help) {
-        if (-Not $json) { Usage; return } else { throw "Help requested, ignoring..." }
-    }
+    if (Test-ToolsHCKHelpExit -Help:$help -ShowUsage { Usage }) { return }
 
-    if ([String]::IsNullOrEmpty($project)) {
-        if (-Not $json) {
-            Write-Output "WARNING: Please provide a project's name."
-            Usage; return
-        } else {
-            throw "Please provide a project's name."
-        }
-    }
+    if (-not (Assert-ToolsHCKNonEmptyParam -Value $project -MissingMessage "Please provide a project's name." -ShowUsage { Usage })) { return }
 
     if (-Not ($Manager.GetProjectNames().Contains($project))) { throw "No project with the given name was found, aborting..." } else { $WntdProject = $Manager.GetProject($project) }
 
