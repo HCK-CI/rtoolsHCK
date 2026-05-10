@@ -55,173 +55,165 @@ $MaxJsonDepth = 6
 #
 # Task
 function New-Task($name, $stage, $status, $taskerrormessage, $tasktype, $childtasks) {
-    $task = New-Object PSObject
-    $task | Add-Member -type NoteProperty -Name name -Value $name
-    $task | Add-Member -type NoteProperty -Name stage -Value $stage
-    $task | Add-Member -type NoteProperty -Name status -Value $status
-    $task | Add-Member -type NoteProperty -Name taskerrormessage -Value $taskerrormessage
-    $task | Add-Member -type NoteProperty -Name tasktype -Value $tasktype
-    $task | Add-Member -type NoteProperty -Name childtasks -Value $childtasks
-    return $task
+    [pscustomobject]@{
+        name              = $name
+        stage             = $stage
+        status            = $status
+        taskerrormessage  = $taskerrormessage
+        tasktype          = $tasktype
+        childtasks        = $childtasks
+    }
 }
 
 #
 # PackageProgressInfo
 function New-PackageProgressInfo($current, $maximum, $message) {
-    $packageprogressinfo = New-Object PSObject
-    $packageprogressinfo | Add-Member -type NoteProperty -Name current -Value $current
-    $packageprogressinfo | Add-Member -type NoteProperty -Name maximum -Value $maximum
-    $packageprogressinfo | Add-Member -type NoteProperty -Name message -Value $message
-    return $packageprogressinfo
+    [pscustomobject]@{
+        current  = $current
+        maximum  = $maximum
+        message  = $message
+    }
 }
 
 #
 # ProjectPackage
 function New-ProjectPackage($name, $projectpackagepath, $iserror, $actionMessages) {
-    $projectpackage = New-Object PSObject
-    $projectpackage | Add-Member -type NoteProperty -Name name -Value $name
-    $projectpackage | Add-Member -type NoteProperty -Name projectpackagepath -Value $projectpackagepath
-    $projectpackage | Add-Member -type NoteProperty -Name iserror -Value $iserror
-    $projectpackage | Add-Member -type NoteProperty -Name messages -Value $actionMessages
-    return $projectpackage
+    [pscustomobject]@{
+        name               = $name
+        projectpackagepath = $projectpackagepath
+        iserror            = $iserror
+        messages           = $actionMessages
+    }
 }
 
 #
 # TestResultLogsZip
-function New-TestResultLogsZip($testname, $testid,$status, $logszippath) {
-    $testresultlogszip = New-Object PSObject
-    $testresultlogszip | Add-Member -type NoteProperty -Name testname -Value $testname
-    $testresultlogszip | Add-Member -type NoteProperty -Name testid -Value $testid
-    $testresultlogszip | Add-Member -type NoteProperty -Name status -Value $status
-    $testresultlogszip | Add-Member -type NoteProperty -Name logszippath -Value $logszippath
-    return $testresultlogszip
+function New-TestResultLogsZip($testname, $testid, $status, $logszippath) {
+    [pscustomobject]@{
+        testname    = $testname
+        testid      = $testid
+        status      = $status
+        logszippath = $logszippath
+    }
 }
 
 #
 # TestResult
 function New-TestResult($name, $completiontime, $scheduletime, $starttime, $status, $instanceid, $arefiltersapplied, $target, $tasks) {
-    $testresult = New-Object PSObject
-    $testresult | Add-Member -type NoteProperty -Name name -Value $name
-    $testresult | Add-Member -type NoteProperty -Name completiontime -Value $completiontime
-    $testresult | Add-Member -type NoteProperty -Name scheduletime -Value $scheduletime
-    $testresult | Add-Member -type NoteProperty -Name starttime -Value $starttime
-    $testresult | Add-Member -type NoteProperty -Name status -Value $status
-    $testresult | Add-Member -type NoteProperty -Name instanceid -Value $instanceid
-    $testresult | Add-Member -type NoteProperty -Name arefiltersapplied -Value $arefiltersapplied
-    $testresult | Add-Member -type NoteProperty -Name target -Value $target
-    $testresult | Add-Member -type NoteProperty -Name tasks -Value $tasks
-    return $testresult
+    [pscustomobject]@{
+        name               = $name
+        completiontime     = $completiontime
+        scheduletime       = $scheduletime
+        starttime          = $starttime
+        status             = $status
+        instanceid         = $instanceid
+        arefiltersapplied  = $arefiltersapplied
+        target             = $target
+        tasks              = $tasks
+    }
 }
 
 #
 # FilterResult
 function New-FilterResult($appliedfilterson) {
-    $filterresult = New-Object PSObject
-    $filterresult | Add-Member -type NoteProperty -Name appliedfilterson -Value $appliedfilterson
-    return $filterresult
+    [pscustomobject]@{ appliedfilterson = $appliedfilterson }
 }
 
 #
 # Test
 function New-Test($name, $id, $testtype, $estimatedruntime, $requiresspecialconfiguration, $requiressupplementalcontent, $scheduleoptions, $status, $executionstate) {
-    $test = New-Object PSObject
-    $test | Add-Member -type NoteProperty -Name name -Value $name
-    $test | Add-Member -type NoteProperty -Name id -Value $id
-    $test | Add-Member -type NoteProperty -Name testtype -Value $testtype
-    $test | Add-Member -type NoteProperty -Name estimatedruntime -Value $estimatedruntime
-    $test | Add-Member -type NoteProperty -Name requiresspecialconfiguration -Value $requiresspecialconfiguration
-    $test | Add-Member -type NoteProperty -Name requiressupplementalcontent -Value $requiressupplementalcontent
-    $test | Add-Member -type NoteProperty -Name scheduleoptions -Value $scheduleoptions
-    $test | Add-Member -type NoteProperty -Name status -Value $status
-    $test | Add-Member -type NoteProperty -Name executionstate -Value $executionstate
-    return $test
+    [pscustomobject]@{
+        name                         = $name
+        id                           = $id
+        testtype                     = $testtype
+        estimatedruntime             = $estimatedruntime
+        requiresspecialconfiguration = $requiresspecialconfiguration
+        requiressupplementalcontent  = $requiressupplementalcontent
+        scheduleoptions              = $scheduleoptions
+        status                       = $status
+        executionstate               = $executionstate
+    }
 }
 
 #
 # ProductInstanceTarget
 function New-ProductInstanceTarget($name, $key, $machine) {
-    $productinstancetarget = New-Object PSObject
-    $productinstancetarget | Add-Member -type NoteProperty -Name name -Value $name
-    $productinstancetarget | Add-Member -type NoteProperty -Name key -Value $key
-    $productinstancetarget | Add-Member -type NoteProperty -Name machine -Value $machine
-    return $productinstancetarget
+    [pscustomobject]@{
+        name    = $name
+        key     = $key
+        machine = $machine
+    }
 }
 
 #
 # ProductInstance
 function New-ProductInstance($name, $osplatform, $targetedpool, $targets) {
-    $productinstance = New-Object PSObject
-    $productinstance | Add-Member -type NoteProperty -Name name -Value $name
-    $productinstance | Add-Member -type NoteProperty -Name osplatform -Value $osplatform
-    $productinstance | Add-Member -type NoteProperty -Name targetedpool -Value $targetedpool
-    $productinstance | Add-Member -type NoteProperty -Name targets -Value $targets
-    return $productinstance
+    [pscustomobject]@{
+        name          = $name
+        osplatform    = $osplatform
+        targetedpool  = $targetedpool
+        targets       = $targets
+    }
 }
 
 #
 # Project
 function New-Project($name, $creationtime, $modifiedtime, $status, $productinstances) {
-    $project = New-Object PSObject
-    $project | Add-Member -type NoteProperty -Name name -Value $name
-    $project | Add-Member -type NoteProperty -Name creationtime -Value $creationtime
-    $project | Add-Member -type NoteProperty -Name modifiedtime -Value $modifiedtime
-    $project | Add-Member -type NoteProperty -Name status -Value $status
-    $project | Add-Member -type NoteProperty -Name productinstances -Value $productinstances
-    return $project
+    [pscustomobject]@{
+        name               = $name
+        creationtime       = $creationtime
+        modifiedtime       = $modifiedtime
+        status             = $status
+        productinstances   = $productinstances
+    }
 }
 
 #
 # Target
 function New-Target($name, $key, $type) {
-    $target = New-Object PSObject
-    $target | Add-Member -type NoteProperty -Name name -Value $name
-    $target | Add-Member -type NoteProperty -Name key -Value $key
-    $target | Add-Member -type NoteProperty -Name type -value $type
-    return $target
+    [pscustomobject]@{
+        name = $name
+        key  = $key
+        type = $type
+    }
 }
 
 #
 # Machine
 function New-Machine($name, $state, $lastheartbeat) {
-    $machine = New-Object PSObject
-    $machine | Add-Member -type NoteProperty -Name name -Value $name
-    $machine | Add-Member -type NoteProperty -Name state -Value $state
-    $machine | Add-Member -type NoteProperty -Name lastheartbeat -Value $lastheartbeat
-    return $machine
+    [pscustomobject]@{
+        name          = $name
+        state         = $state
+        lastheartbeat = $lastheartbeat
+    }
 }
 
 #
 # Pool
 function New-Pool($name, $machines) {
-    $pool = New-Object PSObject
-    $pool | Add-Member -type NoteProperty -Name name -Value $name
-    $pool | Add-Member -type NoteProperty -Name machines -Value $machines
-    return $pool
+    [pscustomobject]@{
+        name     = $name
+        machines = $machines
+    }
 }
 
 #
 # ActionResult
 function New-ActionResult($content, $exception = $nil) {
-    $actionresult = New-Object PSObject
     if ([String]::IsNullOrEmpty($exception)) {
-        $actionresult | Add-Member -type NoteProperty -Name result -Value "Success"
+        $props = @{ result = "Success" }
         if (-Not [String]::IsNullOrEmpty($content)) {
             $jsoncontent = (ConvertFrom-Json $content)
             if ($jsoncontent -is [System.Object[]]) {
-                $actionresult | Add-Member -type NoteProperty -Name content -Value $jsoncontent.SyncRoot
+                $props['content'] = $jsoncontent.SyncRoot
             } else {
-                $actionresult | Add-Member -type NoteProperty -Name content -Value $jsoncontent
+                $props['content'] = $jsoncontent
             }
         }
-    } else {
-        $actionresult | Add-Member -type NoteProperty -Name result -Value "Failure"
-        if ([String]::IsNullOrEmpty($exception.InnerException)) {
-            $actionresult | Add-Member -type NoteProperty -Name message -Value $exception.Message
-        } else {
-            $actionresult | Add-Member -type NoteProperty -Name message -Value $exception.InnerException.Message
-        }
+        return [pscustomobject]$props
     }
-    return $actionresult
+    $msg = if ([String]::IsNullOrEmpty($exception.InnerException)) { $exception.Message } else { $exception.InnerException.Message }
+    return [pscustomobject]@{ result = "Failure"; message = $msg }
 }
 
 # Shared action helpers (interactive vs JSON mode, nested Usage blocks).
