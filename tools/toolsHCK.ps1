@@ -204,8 +204,8 @@ function New-ActionResult($content, $exception = $null) {
         $props = @{ result = "Success" }
         if (-Not [String]::IsNullOrEmpty($content)) {
             $jsoncontent = (ConvertFrom-Json $content)
-            if ($jsoncontent -is [System.Object[]]) {
-                $props['content'] = $jsoncontent.SyncRoot
+            if ($jsoncontent -is [System.Array]) {
+                $props['content'] = @($jsoncontent)
             } else {
                 $props['content'] = $jsoncontent
             }
