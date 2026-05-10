@@ -2098,7 +2098,7 @@ Write-Output "Connecting to $ControllerName..."
 $Manager = New-Object Microsoft.Windows.Kits.Hardware.ObjectModel.DBConnection.DatabaseProjectManager -Args $ControllerName, $DatabaseName
 if ($Manager -eq $null) {
     Write-Output "Connecting to $ControllerName failed"
-    exit -1
+    exit 1
 }
 
 
@@ -2112,7 +2112,7 @@ if ($server) {
     $TCPListener.Start()
     } catch [System.Net.Sockets.SocketException] {
         Write-Output "Starting TCP listener failed due to: $_.Exception.Message"
-        exit -1
+        exit 1
     }
 
     Write-Output "Waiting for a TCP client connection on port $port..."
@@ -2123,7 +2123,7 @@ if ($server) {
     } else {
         Write-Output "Waiting for a TCP client connection has timed out after $timeout seconds"
         $TCPListener.Stop()
-        exit -1
+        exit 1
     }
 
     $TCPStream = $TCPClient.GetStream()
