@@ -295,14 +295,14 @@ function listpools {
             Write-Output "============================================="
         }
     } else {
-        $poolslist = New-Object System.Collections.ArrayList
+        $poolslist = [System.Collections.Generic.List[object]]::new()
         foreach ($Pool in $RootPool.GetChildPools()) {
-            $machineslist = New-Object System.Collections.ArrayList
+            $machineslist = [System.Collections.Generic.List[object]]::new()
             $Machines = $Pool.GetMachines()
             foreach ($Machine in $Machines) {
-                $machineslist.Add((New-Machine $Machine.Name $Machine.Status.ToString() $Machine.LastHeartBeat.ToString())) | Out-Null
+                $machineslist.Add((New-Machine $Machine.Name $Machine.Status.ToString() $Machine.LastHeartBeat.ToString()))
             }
-            $poolslist.Add((New-Pool $Pool.Name $machineslist)) | Out-Null
+            $poolslist.Add((New-Pool $Pool.Name $machineslist))
         }
         ConvertTo-Json @($poolslist) -Depth 3 -Compress
     }
@@ -557,9 +557,9 @@ function listmachinetargets {
             Write-Output "============================================="
         }
     } else {
-        $targetslist = New-Object System.Collections.ArrayList
+        $targetslist = [System.Collections.Generic.List[object]]::new()
         foreach ($TestTarget in $WntdMachine.GetTestTargets()) {
-            $targetslist.Add((New-Target $TestTarget.Name $TestTarget.Key $TestTarget.TargetType)) | Out-Null
+            $targetslist.Add((New-Target $TestTarget.Name $TestTarget.Key $TestTarget.TargetType))
         }
         ConvertTo-Json @($targetslist) -Compress
     }
@@ -623,19 +623,19 @@ function listprojects {
             Write-Output "============================================="
         }
     } else {
-        $projectslist = New-Object System.Collections.ArrayList
+        $projectslist = [System.Collections.Generic.List[object]]::new()
         foreach ($ProjectName in $Manager.GetProjectNames()) {
             $Project = $Manager.GetProject($ProjectName)
             $ProductInstances = $Project.GetProductInstances()
-            $productinstanceslist = New-Object System.Collections.ArrayList
+            $productinstanceslist = [System.Collections.Generic.List[object]]::new()
             foreach ($Pi in $ProductInstances) {
-                $targetslist = New-Object System.Collections.ArrayList
+                $targetslist = [System.Collections.Generic.List[object]]::new()
                 foreach ($Target in $Pi.GetTargets()) {
-                    $targetslist.Add((New-ProductInstanceTarget $Target.Name $Target.Key $Target.Machine.Name)) | Out-Null
+                    $targetslist.Add((New-ProductInstanceTarget $Target.Name $Target.Key $Target.Machine.Name))
                 }
-                $productinstanceslist.Add((New-ProductInstance $Pi.Name $Pi.OSPlatform.Name $Pi.MachinePool.Name $targetslist)) | Out-Null
+                $productinstanceslist.Add((New-ProductInstance $Pi.Name $Pi.OSPlatform.Name $Pi.MachinePool.Name $targetslist))
             }
-            $projectslist.Add((New-Project $Project.Name $Project.CreationTime.ToString() $Project.ModifiedTime.ToString() $Project.Info.Status.ToString() $productinstanceslist)) | Out-Null
+            $projectslist.Add((New-Project $Project.Name $Project.CreationTime.ToString() $Project.ModifiedTime.ToString() $Project.Info.Status.ToString() $productinstanceslist))
         }
         ConvertTo-Json @($projectslist) -Depth 5 -Compress
     }
@@ -766,15 +766,15 @@ function createprojecttarget {
         if (($WntdTarget.TargetType -eq "System") -and ($WntdPITargets | Where-Object { $_.TargetType -ne "System" })) { throw "The project already has non-system targets, can't mix system and non-system targets, aborting..." }
         if (($WntdTarget.TargetType -ne "System") -and ($WntdPITargets | Where-Object { $_.TargetType -eq "System" })) { throw "The project already has system targets, can't mix system and non-system targets, aborting..." }
         else {
-            $WntdtoTarget = New-Object System.Collections.ArrayList
+            $WntdtoTarget = [System.Collections.Generic.List[object]]::new()
             if ($WntdTarget.TargetType -eq "TargetCollection") {
                 foreach ($toTarget in $WntdPI.FindTargetFromContainer($WntdTarget.ContainerId)) {
                     if ($toTarget.Machine.Equals($WntdMachine)){
-                        $WntdtoTarget.Add($toTarget) | Out-Null
+                        $WntdtoTarget.Add($toTarget)
                     }
                 }
             } else {
-                $WntdtoTarget.Add($WntdTarget) | Out-Null
+                $WntdtoTarget.Add($WntdTarget)
             }
             if ($WntdtoTarget.Count -lt 1) { throw "No targets to create were found, aborting..." }
             foreach ($toTarget in $WntdtoTarget) {
@@ -850,13 +850,13 @@ function deleteprojecttarget {
     if (-Not ($Manager.GetProjectNames().Contains($project))) { throw "No project with the given name was found, aborting..." } else { $WntdProject = $Manager.GetProject($project) }
     if (-Not ($WntdPI = $WntdProject.GetProductInstances() | Where-Object { $_.OSPlatform -eq $WntdMachine.OSPlatform })) { throw "Machine pool not targeted in the project." }
 
-    $WntdtoDelete = New-Object System.Collections.ArrayList
+    $WntdtoDelete = [System.Collections.Generic.List[object]]::new()
     if ($WntdTarget.TargetType -eq "TargetCollection") {
         foreach ($toDelete in $WntdPI.FindTargetFromContainer($WntdTarget.ContainerId)) {
-            $WntdPI.GetTargets() | Where-Object { ($_.Key -eq $toDelete.Key) -and ($_.Machine.Equals($toDelete.Machine)) } | foreach { $WntdtoDelete.Add($_) | Out-Null }
+            $WntdPI.GetTargets() | Where-Object { ($_.Key -eq $toDelete.Key) -and ($_.Machine.Equals($toDelete.Machine)) } | foreach { $WntdtoDelete.Add($_) }
         }
     } else {
-        $WntdtoDelete.Add($WntdTarget) | Out-Null
+        $WntdtoDelete.Add($WntdTarget)
     }
     foreach ($toDelete in $WntdtoDelete) {
         if (-Not $json) { Write-Output "Deleting a new project's target from $($toDelete.Name)." }
@@ -870,12 +870,12 @@ function parsescheduleoptions {
     [CmdletBinding()]
     param([Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption] $scheduleoptions)
 
-    $ParsedScheduleOptions = New-Object System.Collections.ArrayList
+    $ParsedScheduleOptions = [System.Collections.Generic.List[object]]::new()
 
-    if (($scheduleoptions -band [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::RequiresMultipleMachines) -eq [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::RequiresMultipleMachines) { $ParsedScheduleOptions.Add([Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::RequiresMultipleMachines.ToString()) | Out-Null }
-    if (($scheduleoptions -band [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ScheduleOnAllTargets) -eq [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ScheduleOnAllTargets) { $ParsedScheduleOptions.Add([Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ScheduleOnAllTargets.ToString()) | Out-Null }
-    if (($scheduleoptions -band [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ScheduleOnAnyTarget) -eq [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ScheduleOnAnyTarget) { $ParsedScheduleOptions.Add([Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ScheduleOnAnyTarget.ToString()) | Out-Null }
-    if (($scheduleoptions -band [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ConsolidateScheduleAcrossTargets) -eq [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ConsolidateScheduleAcrossTargets) { $ParsedScheduleOptions.Add([Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ConsolidateScheduleAcrossTargets.ToString()) | Out-Null }
+    if (($scheduleoptions -band [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::RequiresMultipleMachines) -eq [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::RequiresMultipleMachines) { $ParsedScheduleOptions.Add([Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::RequiresMultipleMachines.ToString()) }
+    if (($scheduleoptions -band [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ScheduleOnAllTargets) -eq [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ScheduleOnAllTargets) { $ParsedScheduleOptions.Add([Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ScheduleOnAllTargets.ToString()) }
+    if (($scheduleoptions -band [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ScheduleOnAnyTarget) -eq [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ScheduleOnAnyTarget) { $ParsedScheduleOptions.Add([Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ScheduleOnAnyTarget.ToString()) }
+    if (($scheduleoptions -band [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ConsolidateScheduleAcrossTargets) -eq [Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ConsolidateScheduleAcrossTargets) { $ParsedScheduleOptions.Add([Microsoft.Windows.Kits.Hardware.ObjectModel.DistributionOption]::ConsolidateScheduleAcrossTargets.ToString()) }
 
     return ,$ParsedScheduleOptions
 }
@@ -963,25 +963,25 @@ function listtests {
     if (-Not ($Manager.GetProjectNames().Contains($project))) { throw "No project with the given name was found, aborting..." } else { $WntdProject = $Manager.GetProject($project) }
     if (-Not ($WntdPI = $WntdProject.GetProductInstances() | Where-Object { $_.OSPlatform -eq $WntdMachine.OSPlatform })) { throw "Machine pool not targeted in the project." }
 
-    $WntdPITargets = New-Object System.Collections.ArrayList
+    $WntdPITargets = [System.Collections.Generic.List[object]]::new()
 
     if ($WntdTarget.TargetType -eq "TargetCollection") {
         foreach ($tTarget in $WntdPI.FindTargetFromContainer($WntdTarget.ContainerId)) {
-            $WntdPI.GetTargets() | Where-Object { ($_.Key -eq $tTarget.Key) -and ($_.Machine.Equals($tTarget.Machine)) } | foreach { $WntdPITargets.Add($_) | Out-Null }
+            $WntdPI.GetTargets() | Where-Object { ($_.Key -eq $tTarget.Key) -and ($_.Machine.Equals($tTarget.Machine)) } | foreach { $WntdPITargets.Add($_) }
         }
         if ($WntdPITargets.Count -lt 1) { throw "The target is not being targeted by the project." }
     } else {
         if (-Not ($WntdPITarget = $WntdPI.GetTargets() | Where-Object { ($_.Key -eq $WntdTarget.Key) -and ($_.Machine.Equals($WntdMachine)) })) { throw "The target is not being targeted by the project." }
-        $WntdPITargets.Add($WntdPITarget) | Out-Null
+        $WntdPITargets.Add($WntdPITarget)
     }
 
-    $WntdTests = New-Object System.Collections.ArrayList
+    $WntdTests = [System.Collections.Generic.List[object]]::new()
 
     if (-Not [String]::IsNullOrEmpty($playlist)) {
         $PlaylistManager = New-Object Microsoft.Windows.Kits.Hardware.ObjectModel.PlaylistManager $WntdProject
         $WntdPlaylist = [Microsoft.Windows.Kits.Hardware.ObjectModel.PlaylistManager]::DeserializePlaylist($playlist)
         foreach ($tTest in $PlaylistManager.GetTestsFromProjectThatMatchPlaylist($WntdPlaylist)) {
-            if ($tTest.GetTestTargets() | Where-Object { $WntdPITargets.Contains($_) }) { $WntdTests.Add($tTest) | Out-Null }
+            if ($tTest.GetTestTargets() | Where-Object { $WntdPITargets.Contains($_) }) { $WntdTests.Add($tTest) }
         }
     } else {
         $WntdPITargets | foreach { $WntdTests.AddRange($_.GetTests()) }
@@ -1013,14 +1013,14 @@ function listtests {
             Write-Output "============================================="
         }
     } else {
-        $testslist = New-Object System.Collections.ArrayList
+        $testslist = [System.Collections.Generic.List[object]]::new()
         foreach ($tTest in $WntdTests) {
             if (-Not (($manual -and ($tTest.TestType -eq "Manual")) -or ($auto -and ($tTest.TestType -eq "Automated")))) {
                 continue
             } elseif (-Not (($notrun -and ($tTest.Status -eq "NotRun")) -or ($failed -and ($tTest.Status -eq "Failed")) -or ($passed -and ($tTest.Status -eq "Passed")) -or ($running -and ($tTest.ExecutionState -eq "Running")) -or ($inqueue -and ($tTest.ExecutionState -eq "InQueue")))) {
                 continue
             }
-            $testslist.Add((New-Test $tTest.Name $tTest.Id $tTest.TestType.ToString() $tTest.EstimatedRuntime.ToString() $tTest.RequiresSpecialConfiguration.ToString() $tTest.RequiresSupplementalContent.ToString() (parsescheduleoptions($tTest.ScheduleOptions)) $tTest.Status.ToString() $tTest.ExecutionState.ToString())) | Out-Null
+            $testslist.Add((New-Test $tTest.Name $tTest.Id $tTest.TestType.ToString() $tTest.EstimatedRuntime.ToString() $tTest.RequiresSpecialConfiguration.ToString() $tTest.RequiresSupplementalContent.ToString() (parsescheduleoptions($tTest.ScheduleOptions)) $tTest.Status.ToString() $tTest.ExecutionState.ToString()))
         }
         ConvertTo-Json @($testslist) -Compress
     }
@@ -1121,19 +1121,19 @@ function gettestinfo {
     if (-Not ($Manager.GetProjectNames().Contains($project))) { throw "No project with the given name was found, aborting..." } else { $WntdProject = $Manager.GetProject($project) }
     if (-Not ($WntdPI = $WntdProject.GetProductInstances() | Where-Object { $_.OSPlatform -eq $WntdMachine.OSPlatform })) { throw "Machine pool not targeted in the project." }
 
-    $WntdPITargets = New-Object System.Collections.ArrayList
+    $WntdPITargets = [System.Collections.Generic.List[object]]::new()
 
     if ($WntdTarget.TargetType -eq "TargetCollection") {
         foreach ($tTarget in $WntdPI.FindTargetFromContainer($WntdTarget.ContainerId)) {
-            $WntdPI.GetTargets() | Where-Object { ($_.Key -eq $tTarget.Key) -and ($_.Machine.Equals($tTarget.Machine)) } | foreach { $WntdPITargets.Add($_) | Out-Null }
+            $WntdPI.GetTargets() | Where-Object { ($_.Key -eq $tTarget.Key) -and ($_.Machine.Equals($tTarget.Machine)) } | foreach { $WntdPITargets.Add($_) }
         }
         if ($WntdPITargets.Count -lt 1) { throw "The target is not being targeted by the project." }
     } else {
         if (-Not ($WntdPITarget = $WntdPI.GetTargets() | Where-Object { ($_.Key -eq $WntdTarget.Key) -and ($_.Machine.Equals($WntdMachine)) })) { throw "The target is not being targeted by the project." }
-        $WntdPITargets.Add($WntdPITarget) | Out-Null
+        $WntdPITargets.Add($WntdPITarget)
     }
 
-    $WntdTests = New-Object System.Collections.ArrayList
+    $WntdTests = [System.Collections.Generic.List[object]]::new()
     $WntdPITargets | foreach { $WntdTests.AddRange($_.GetTests()) }
 
     if (-Not ($WntdTest = $WntdTests | Where-Object { $_.Id -eq $test })) { throw "Didn't find a test with the id given." }
@@ -1227,19 +1227,19 @@ function queuetest {
     if (-Not ($Manager.GetProjectNames().Contains($project))) { throw "No project with the given name was found, aborting..." } else { $WntdProject = $Manager.GetProject($project) }
     if (-Not ($WntdPI = $WntdProject.GetProductInstances() | Where-Object { $_.OSPlatform -eq $WntdMachine.OSPlatform })) { throw "Machine pool not targeted in the project." }
 
-    $WntdPITargets = New-Object System.Collections.ArrayList
+    $WntdPITargets = [System.Collections.Generic.List[object]]::new()
 
     if ($WntdTarget.TargetType -eq "TargetCollection") {
         foreach ($tTarget in $WntdPI.FindTargetFromContainer($WntdTarget.ContainerId)) {
-            $WntdPI.GetTargets() | Where-Object { ($_.Key -eq $tTarget.Key) -and ($_.Machine.Equals($tTarget.Machine)) } | foreach { $WntdPITargets.Add($_) | Out-Null }
+            $WntdPI.GetTargets() | Where-Object { ($_.Key -eq $tTarget.Key) -and ($_.Machine.Equals($tTarget.Machine)) } | foreach { $WntdPITargets.Add($_) }
         }
         if ($WntdPITargets.Count -lt 1) { throw "The target is not being targeted by the project." }
     } else {
         if (-Not ($WntdPITarget = $WntdPI.GetTargets() | Where-Object { ($_.Key -eq $WntdTarget.Key) -and ($_.Machine.Equals($WntdMachine)) })) { throw "The target is not being targeted by the project." }
-        $WntdPITargets.Add($WntdPITarget) | Out-Null
+        $WntdPITargets.Add($WntdPITarget)
     }
 
-    $WntdTests = New-Object System.Collections.ArrayList
+    $WntdTests = [System.Collections.Generic.List[object]]::new()
     $WntdPITargets | foreach { $WntdTests.AddRange($_.GetTests()) }
 
     if (-Not ($WntdTest = $WntdTests | Where-Object { $_.Id -eq $test })) { throw "Didn't find a test with the id given." }
@@ -1260,7 +1260,7 @@ function queuetest {
     if (-Not [String]::IsNullOrEmpty($sup)) {
         if (-Not ($WntdSMachine = $WntdPool.GetMachines()| Where-Object { $_.Name -eq $sup })) { throw "The support machine was not found, aborting..." }
         $MachineSet = $WntdTest.GetMachineRole()
-        $RoleMachines = New-Object System.Collections.ArrayList
+        $RoleMachines = [System.Collections.Generic.List[object]]::new()
         foreach ($Role in $MachineSet.Roles) {
             $RoleMachines.AddRange($Role.GetMachines())
             $RoleMachines | foreach { $Role.RemoveMachine($_) }
@@ -1375,19 +1375,19 @@ function applytestresultfilters {
     if (-Not ($Manager.GetProjectNames().Contains($project))) { throw "No project with the given name was found, aborting..." } else { $WntdProject = $Manager.GetProject($project) }
     if (-Not ($WntdPI = $WntdProject.GetProductInstances() | Where-Object { $_.OSPlatform -eq $WntdMachine.OSPlatform })) { throw "Machine pool not targeted in the project." }
 
-    $WntdPITargets = New-Object System.Collections.ArrayList
+    $WntdPITargets = [System.Collections.Generic.List[object]]::new()
 
     if ($WntdTarget.TargetType -eq "TargetCollection") {
         foreach ($tTarget in $WntdPI.FindTargetFromContainer($WntdTarget.ContainerId)) {
-            $WntdPI.GetTargets() | Where-Object { ($_.Key -eq $tTarget.Key) -and ($_.Machine.Equals($tTarget.Machine)) } | foreach { $WntdPITargets.Add($_) | Out-Null }
+            $WntdPI.GetTargets() | Where-Object { ($_.Key -eq $tTarget.Key) -and ($_.Machine.Equals($tTarget.Machine)) } | foreach { $WntdPITargets.Add($_) }
         }
         if ($WntdPITargets.Count -lt 1) { throw "The target is not being targeted by the project." }
     } else {
         if (-Not ($WntdPITarget = $WntdPI.GetTargets() | Where-Object { ($_.Key -eq $WntdTarget.Key) -and ($_.Machine.Equals($WntdMachine)) })) { throw "The target is not being targeted by the project." }
-        $WntdPITargets.Add($WntdPITarget) | Out-Null
+        $WntdPITargets.Add($WntdPITarget)
     }
 
-    $WntdTests = New-Object System.Collections.ArrayList
+    $WntdTests = [System.Collections.Generic.List[object]]::new()
     $WntdPITargets | foreach { $WntdTests.AddRange($_.GetTests()) }
 
     if (-Not ($WntdTest = $WntdTests | Where-Object { $_.Id -eq $test })) { throw "Didn't find a test with the id given." }
@@ -1460,29 +1460,29 @@ function listtestresults {
     if (-Not ($Manager.GetProjectNames().Contains($project))) { throw "No project with the given name was found, aborting..." } else { $WntdProject = $Manager.GetProject($project) }
     if (-Not ($WntdPI = $WntdProject.GetProductInstances() | Where-Object { $_.OSPlatform -eq $WntdMachine.OSPlatform })) { throw "Machine pool not targeted in the project." }
 
-    $WntdPITargets = New-Object System.Collections.ArrayList
+    $WntdPITargets = [System.Collections.Generic.List[object]]::new()
 
     if ($WntdTarget.TargetType -eq "TargetCollection") {
         foreach ($tTarget in $WntdPI.FindTargetFromContainer($WntdTarget.ContainerId)) {
-            $WntdPI.GetTargets() | Where-Object { ($_.Key -eq $tTarget.Key) -and ($_.Machine.Equals($tTarget.Machine)) } | foreach { $WntdPITargets.Add($_) | Out-Null }
+            $WntdPI.GetTargets() | Where-Object { ($_.Key -eq $tTarget.Key) -and ($_.Machine.Equals($tTarget.Machine)) } | foreach { $WntdPITargets.Add($_) }
         }
         if ($WntdPITargets.Count -lt 1) { throw "The target is not being targeted by the project." }
     } else {
         if (-Not ($WntdPITarget = $WntdPI.GetTargets() | Where-Object { ($_.Key -eq $WntdTarget.Key) -and ($_.Machine.Equals($WntdMachine)) })) { throw "The target is not being targeted by the project." }
-        $WntdPITargets.Add($WntdPITarget) | Out-Null
+        $WntdPITargets.Add($WntdPITarget)
     }
 
-    $WntdTests = New-Object System.Collections.ArrayList
+    $WntdTests = [System.Collections.Generic.List[object]]::new()
 
     if ([String]::IsNullOrEmpty($testid)) {
         $WntdPITargets | foreach { $WntdTests.AddRange($_.GetTests()) }
     } else {
-        $WntdPITargets | foreach { $_.GetTests() } | Where-Object { $_.Id -eq $testid } | foreach { $WntdTests.Add($_) | Out-Null }
+        $WntdPITargets | foreach { $_.GetTests() } | Where-Object { $_.Id -eq $testid } | foreach { $WntdTests.Add($_) }
         if ($WntdTests.Count -lt 1) { throw "Didn't find a test with the id given." }
         if ($WntdTests[0].GetTestResults().Count -lt 1) { throw "The test hasen't been queued, can't find test results." }
     }
 
-    $testresultlist = New-Object System.Collections.ArrayList
+    $testresultlist = [System.Collections.Generic.List[object]]::new()
     foreach ($WntdTest in $WntdTests) {
         $WntdResults = $WntdTest.GetTestResults()
 
@@ -1536,22 +1536,22 @@ function listtestresults {
         } else {
             foreach ($tTestResult in $WntdResults) {
                 $tTestResult.Refresh()
-                $taskslist = New-Object System.Collections.ArrayList
+                $taskslist = [System.Collections.Generic.List[object]]::new()
 
                 foreach ($tTask in $tTestResult.GetTasks()) {
-                    $subtaskslist = New-Object System.Collections.ArrayList
+                    $subtaskslist = [System.Collections.Generic.List[object]]::new()
 
                     if ($tTask.GetChildTasks()) {
                         foreach ($subtTask in $tTask.GetChildTasks()) {
-                            $subtasktype = (New-Task $subtTask.Name $subtTask.Stage $subtTask.Status.ToString() $subtTask.TaskErrorMessage $subtTask.TaskType (New-Object System.Collections.ArrayList))
-                            $subtaskslist.Add($subtasktype) | Out-Null
+                            $subtasktype = (New-Task $subtTask.Name $subtTask.Stage $subtTask.Status.ToString() $subtTask.TaskErrorMessage $subtTask.TaskType ([System.Collections.Generic.List[object]]::new()))
+                            $subtaskslist.Add($subtasktype)
                         }
                     }
                     $tasktype = (New-Task $tTask.Name $tTask.Stage $tTask.Status.ToString() $tTask.TaskErrorMessage $tTask.TaskType $subtaskslist)
-                    $taskslist.Add($tasktype) | Out-Null
+                    $taskslist.Add($tasktype)
                 }
 
-                $testresultlist.Add((New-TestResult $tTestResult.Test.Name $tTestResult.CompletionTime.ToString() $tTestResult.ScheduleTime.ToString() $tTestResult.StartTime.ToString() $tTestResult.Status.ToString() $tTestResult.InstanceId.ToString() $tTestResult.AreFiltersApplied.ToString() $tTestResult.Target.Name $taskslist)) | Out-Null
+                $testresultlist.Add((New-TestResult $tTestResult.Test.Name $tTestResult.CompletionTime.ToString() $tTestResult.ScheduleTime.ToString() $tTestResult.StartTime.ToString() $tTestResult.Status.ToString() $tTestResult.InstanceId.ToString() $tTestResult.AreFiltersApplied.ToString() $tTestResult.Target.Name $taskslist))
             }
         }
     }
@@ -1620,19 +1620,19 @@ function ziptestresultlogs {
     if (-Not ($Manager.GetProjectNames().Contains($project))) { throw "No project with the given name was found, aborting..." } else { $WntdProject = $Manager.GetProject($project) }
     if (-Not ($WntdPI = $WntdProject.GetProductInstances() | Where-Object { $_.OSPlatform -eq $WntdMachine.OSPlatform })) { throw "Machine pool not targeted in the project." }
 
-    $WntdPITargets = New-Object System.Collections.ArrayList
+    $WntdPITargets = [System.Collections.Generic.List[object]]::new()
 
     if ($WntdTarget.TargetType -eq "TargetCollection") {
         foreach ($tTarget in $WntdPI.FindTargetFromContainer($WntdTarget.ContainerId)) {
-            $WntdPI.GetTargets() | Where-Object { ($_.Key -eq $tTarget.Key) -and ($_.Machine.Equals($tTarget.Machine)) } | foreach { $WntdPITargets.Add($_) | Out-Null }
+            $WntdPI.GetTargets() | Where-Object { ($_.Key -eq $tTarget.Key) -and ($_.Machine.Equals($tTarget.Machine)) } | foreach { $WntdPITargets.Add($_) }
         }
         if ($WntdPITargets.Count -lt 1) { throw "The target is not being targeted by the project." }
     } else {
         if (-Not ($WntdPITarget = $WntdPI.GetTargets() | Where-Object { ($_.Key -eq $WntdTarget.Key) -and ($_.Machine.Equals($WntdMachine)) })) { throw "The target is not being targeted by the project." }
-        $WntdPITargets.Add($WntdPITarget) | Out-Null
+        $WntdPITargets.Add($WntdPITarget)
     }
 
-    $WntdTests = New-Object System.Collections.ArrayList
+    $WntdTests = [System.Collections.Generic.List[object]]::new()
     $WntdPITargets | foreach { $WntdTests.AddRange($_.GetTests()) }
 
     if (-Not ($WntdTest = $WntdTests | Where-Object { $_.Id -eq $test })) { throw "Didn't find a test with the id given." }
@@ -1715,7 +1715,7 @@ function createprojectpackage {
 
     [Int]$global:Steps = 1
     if ($server) {
-        $global:StepsArray = New-Object System.Collections.ArrayList
+        $global:StepsArray = [System.Collections.Generic.List[object]]::new()
     }
 
     [Action[Microsoft.Windows.Kits.Hardware.ObjectModel.Submission.PackageProgressInfo]]$action = {
@@ -1724,7 +1724,7 @@ function createprojectpackage {
         if (($progressinfo.Current -eq 0) -and ($progressinfo.Maximum -eq 0)) {
             $jsonprogressinfo = @(New-PackageProgressInfo $progressinfo.Current $progressinfo.Maximum $progressinfo.Message) | ConvertTo-Json -Compress
             if ($server) {
-                $global:StepsArray.Add($jsonprogressinfo) | Out-Null
+                $global:StepsArray.Add($jsonprogressinfo)
             }
             Write-Host $jsonprogressinfo
         } else {
@@ -1741,7 +1741,7 @@ function createprojectpackage {
             }
             $jsonprogressinfo = @(New-PackageProgressInfo $progressinfo.Current $progressinfo.Maximum $progressinfo.Message) | ConvertTo-Json -Compress
             if ($server) {
-                $global:StepsArray.Add($jsonprogressinfo) | Out-Null
+                $global:StepsArray.Add($jsonprogressinfo)
             }
             Write-Host $jsonprogressinfo
         }
@@ -1896,7 +1896,7 @@ function receivetcpsocket {
 # Split a command line into tokens; whitespace separates tokens; single/double quotes group text.
 function Split-ToolsHCKCmdLine {
     param([string]$Line)
-    $tokens = New-Object System.Collections.ArrayList
+    $tokens = [System.Collections.Generic.List[string]]::new()
     if ([string]::IsNullOrWhiteSpace($Line)) {
         return ,@()
     }
@@ -1934,7 +1934,7 @@ function Split-ToolsHCKCmdLine {
         }
         if ([char]::IsWhiteSpace($c)) {
             if ($sb.Length -gt 0) {
-                [void]$tokens.Add($sb.ToString())
+                $tokens.Add($sb.ToString())
                 [void]$sb.Clear()
             }
             continue
@@ -1942,7 +1942,7 @@ function Split-ToolsHCKCmdLine {
         [void]$sb.Append($c)
     }
     if ($sb.Length -gt 0) {
-        [void]$tokens.Add($sb.ToString())
+        $tokens.Add($sb.ToString())
     }
     if ($inSingle -or $inDouble) {
         throw "Unterminated quote in command line."
@@ -2022,28 +2022,29 @@ function Usage {
 # ----------------------------------------------------------------- #
 # Choosing which action to perform by parsing the called parameters #
 # ----------------------------------------------------------------- #
-$toolsHCKlist = New-Object System.Collections.ArrayList
-$toolsHCKlist.AddRange( ("listpools",
-                         "createpool",
-                         "deletepool",
-                         "movemachine",
-                         "setmachinestate",
-                         "deletemachine",
-                         "listmachinetargets",
-                         "listprojects",
-                         "createproject",
-                         "deleteproject",
-                         "createprojecttarget",
-                         "deleteprojecttarget",
-                         "listtests",
-                         "gettestinfo",
-                         "queuetest",
-                         "applyprojectfilters",
-                         "applytestresultfilters",
-                         "listtestresults",
-                         "ziptestresultlogs",
-                         "createprojectpackage",
-                         "loadplaylist") )
+$toolsHCKlist = [System.Collections.Generic.List[string]]::new([string[]]@(
+    "listpools",
+    "createpool",
+    "deletepool",
+    "movemachine",
+    "setmachinestate",
+    "deletemachine",
+    "listmachinetargets",
+    "listprojects",
+    "createproject",
+    "deleteproject",
+    "createprojecttarget",
+    "deleteprojecttarget",
+    "listtests",
+    "gettestinfo",
+    "queuetest",
+    "applyprojectfilters",
+    "applytestresultfilters",
+    "listtestresults",
+    "ziptestresultlogs",
+    "createprojectpackage",
+    "loadplaylist"
+))
 
 # -------------------------------------- #
 # Trying to perform the requested action #
@@ -2104,7 +2105,7 @@ while($true) {
         $cmdline = Read-Host
     }
 
-    [System.Collections.ArrayList]$cmdlinelist = @(Split-ToolsHCKCmdLine $cmdline)
+    $cmdlinelist = [System.Collections.Generic.List[string]]::new([string[]]@(Split-ToolsHCKCmdLine $cmdline))
     $json = $false
     if ($cmdlinelist.Contains("json")) {
         $json = $true
