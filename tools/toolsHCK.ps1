@@ -199,7 +199,7 @@ function New-Pool($name, $machines) {
 
 #
 # ActionResult
-function New-ActionResult($content, $exception = $nil) {
+function New-ActionResult($content, $exception = $null) {
     if ([String]::IsNullOrEmpty($exception)) {
         $props = @{ result = "Success" }
         if (-Not [String]::IsNullOrEmpty($content)) {
@@ -2184,7 +2184,7 @@ while($true) {
                     $output = "WARNING: $($_.Exception.InnerException.Message)"
                 }
             } else {
-                $output = New-ActionResult $nil $_.Exception | ConvertTo-Json -Compress
+                $output = New-ActionResult $null $_.Exception | ConvertTo-Json -Compress
             }
         }
     } else {
