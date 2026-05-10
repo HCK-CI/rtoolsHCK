@@ -2308,6 +2308,63 @@ function receivetcpsocket {
     while (-Not $TCPStream.DataAvailable) { Start-Sleep -Milliseconds $PollingSleep }
     $TCPStreamReader.ReadLine().TrimEnd()
 }
+
+# Split a command line into tokens; whitespace separates tokens; single/double quotes group text.
+function Split-ToolsHCKCmdLine {
+    param([string]$Line)
+    $tokens = New-Object System.Collections.ArrayList
+    if ([string]::IsNullOrWhiteSpace($Line)) {
+        return ,@()
+    }
+    $sb = New-Object System.Text.StringBuilder
+    $inSingle = $false
+    $inDouble = $false
+    for ($i = 0; $i -lt $Line.Length; $i++) {
+        $c = $Line[$i]
+        if ($inSingle) {
+            if ($c -eq [char]39) {
+                $inSingle = $false
+            } else {
+                [void]$sb.Append($c)
+            }
+            continue
+        }
+        if ($inDouble) {
+            if ($c -eq [char]34) {
+                $inDouble = $false
+            } elseif ($c -eq [char]96 -and ($i + 1) -lt $Line.Length) {
+                $i++
+                [void]$sb.Append($Line[$i])
+            } else {
+                [void]$sb.Append($c)
+            }
+            continue
+        }
+        if ($c -eq [char]39) {
+            $inSingle = $true
+            continue
+        }
+        if ($c -eq [char]34) {
+            $inDouble = $true
+            continue
+        }
+        if ([char]::IsWhiteSpace($c)) {
+            if ($sb.Length -gt 0) {
+                [void]$tokens.Add($sb.ToString())
+                [void]$sb.Clear()
+            }
+            continue
+        }
+        [void]$sb.Append($c)
+    }
+    if ($sb.Length -gt 0) {
+        [void]$tokens.Add($sb.ToString())
+    }
+    if ($inSingle -or $inDouble) {
+        throw "Unterminated quote in command line."
+    }
+    return ,@($tokens.ToArray())
+}
 #
 # Usage
 function Usage {
@@ -2463,15 +2520,19 @@ while($true) {
         $cmdline = Read-Host
     }
 
-    [System.Collections.ArrayList]$cmdlinelist = $cmdline.Split(" ")
+    [System.Collections.ArrayList]$cmdlinelist = @(Split-ToolsHCKCmdLine $cmdline)
     $json = $false
     if ($cmdlinelist.Contains("json")) {
         $json = $true
         $cmdlinelist.Remove("json")
     }
 
-    $cmd = $cmdlinelist[0]
-    $cmdlinelist.RemoveAt(0)
+    if ($cmdlinelist.Count -lt 1) {
+        $cmd = [string]::Empty
+    } else {
+        $cmd = $cmdlinelist[0]
+        $cmdlinelist.RemoveAt(0)
+    }
 
     if ([String]::IsNullOrEmpty($cmd) -or $cmd -eq "help") {
         $output = Usage
