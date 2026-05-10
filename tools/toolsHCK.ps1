@@ -242,6 +242,37 @@ function Assert-ToolsHCKNonEmptyParam {
     throw $MissingMessage
 }
 
+function Get-ToolsHCKChildPool {
+    param(
+        [Parameter(Mandatory)][string]$PoolName,
+        [string]$IfNotFound
+    )
+    $wntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $PoolName }
+    if (-not $wntdPool) {
+        if (-not [string]::IsNullOrEmpty($IfNotFound)) {
+            throw $IfNotFound
+        }
+        throw "Did not find pool $PoolName in Root pool, aborting..."
+    }
+    $wntdPool
+}
+
+function Get-ToolsHCKMachineInPool {
+    param(
+        [Parameter(Mandatory)]$WntdPool,
+        [Parameter(Mandatory)][string]$MachineName,
+        [string]$IfNotFound
+    )
+    $wntdMachine = $WntdPool.GetMachines() | Where-Object { $_.Name -eq $MachineName }
+    if (-not $wntdMachine) {
+        if (-not [string]::IsNullOrEmpty($IfNotFound)) {
+            throw $IfNotFound
+        }
+        throw "The test machine was not found, aborting..."
+    }
+    $wntdMachine
+}
+
 # ------------------------------------------------------------ #
 # Functions, one for each action the script is able to perform #
 # ------------------------------------------------------------ #
@@ -368,7 +399,7 @@ function deletepool {
 
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
 
-    if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Provided pool's name is not valid, aborting..."}
+    $WntdPool = Get-ToolsHCKChildPool -PoolName $pool -IfNotFound "Provided pool's name is not valid, aborting..."
 
     if (-Not $json) { Write-Output "Deleting pool $pool in Root pool." }
     $RootPool.DeleteChildPool($WntdPool)
@@ -408,9 +439,9 @@ function movemachine {
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $from -MissingMessage "Please provide a source pool's name." -ShowUsage { Usage })) { return }
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $to -MissingMessage "Please provide a destination pool's name." -ShowUsage { Usage })) { return }
 
-    if (-Not ($WntdFromPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $from })) { throw "Provided source pool's name is not valid, aborting..." }
-    if (-Not ($WntdToPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $to })) { throw "Provided destination pool's name is not valid, aborting..." }
-    if (-Not ($WntdMachine = $WntdFromPool.GetMachines() | Where-Object { $_.Name -eq $machine })) { throw "Provided machines's name is not valid, aborting..." }
+    $WntdFromPool = Get-ToolsHCKChildPool -PoolName $from -IfNotFound "Provided source pool's name is not valid, aborting..."
+    $WntdToPool = Get-ToolsHCKChildPool -PoolName $to -IfNotFound "Provided destination pool's name is not valid, aborting..."
+    $WntdMachine = Get-ToolsHCKMachineInPool -WntdPool $WntdFromPool -MachineName $machine -IfNotFound "Provided machines's name is not valid, aborting..."
 
     if (-Not $json) { Write-Output "Moving machine $($WntdMachine.Name) from $($WntdFromPool.Name) to $($WntdToPool.Name) pool." }
     $WntdFromPool.MoveMachineTo($WntdMachine, $WntdToPool)
@@ -452,8 +483,8 @@ function setmachinestate {
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $state -MissingMessage "Please provide a state." -ShowUsage { Usage })) { return }
 
-    if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Provided pool's name is not valid, aborting..." }
-    if (-Not ($WntdMachine = $WntdPool.GetMachines() | Where-Object { $_.Name -eq $machine })) { throw "Provided machines's name is not valid, aborting..." }
+    $WntdPool = Get-ToolsHCKChildPool -PoolName $pool -IfNotFound "Provided pool's name is not valid, aborting..."
+    $WntdMachine = Get-ToolsHCKMachineInPool -WntdPool $WntdPool -MachineName $machine -IfNotFound "Provided machines's name is not valid, aborting..."
     if (-Not ($timeout -eq -1)) { $timeout = $timeout * 1000 }
 
     if (-Not $json) { Write-Output "Setting machine $($WntdMachine.Name) to $state state..." }
@@ -501,7 +532,7 @@ function deletemachine {
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $machine -MissingMessage "Please provide a machine's name." -ShowUsage { Usage })) { return }
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
 
-    if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Provided pool's name is not valid, aborting..." }
+    $WntdPool = Get-ToolsHCKChildPool -PoolName $pool -IfNotFound "Provided pool's name is not valid, aborting..."
 
     if (-Not $json) { Write-Output "Deleting machine $machine..." }
     $WntdPool.DeleteMachine($machine)
@@ -539,8 +570,8 @@ function listmachinetargets {
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $machine -MissingMessage "Please provide a machine's name." -ShowUsage { Usage })) { return }
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
 
-    if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Did not find pool $pool in Root pool, aborting..." }
-    if (-Not ($WntdMachine = $WntdPool.GetMachines()| Where-Object { $_.Name -eq $machine })) { throw "The test machine was not found, aborting..." }
+    $WntdPool = Get-ToolsHCKChildPool -PoolName $pool
+    $WntdMachine = Get-ToolsHCKMachineInPool -WntdPool $WntdPool -MachineName $machine
 
     if (-Not $json) {
         Write-Output ""
@@ -747,8 +778,8 @@ function createprojecttarget {
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $machine -MissingMessage "Please provide a machine's name." -ShowUsage { Usage })) { return }
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
 
-    if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Did not find pool $pool in Root pool, aborting..." }
-    if (-Not ($WntdMachine = $WntdPool.GetMachines()| Where-Object { $_.Name -eq $machine })) { throw "The test machine was not found, aborting..." }
+    $WntdPool = Get-ToolsHCKChildPool -PoolName $pool
+    $WntdMachine = Get-ToolsHCKMachineInPool -WntdPool $WntdPool -MachineName $machine
     if (-Not ($WntdTarget = $WntdMachine.GetTestTargets() | Where-Object { $_.Key -eq $target })) { throw "A target that matches the target's key given was not found in the specified machine, aborting..." }
     if (-Not ($Manager.GetProjectNames().Contains($project))) { throw "No project with the given name was found, aborting..." } else { $WntdProject = $Manager.GetProject($project) }
     $CreatedPI = $false
@@ -844,8 +875,8 @@ function deleteprojecttarget {
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $machine -MissingMessage "Please provide a machine's name." -ShowUsage { Usage })) { return }
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
 
-    if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Did not find pool $pool in Root pool, aborting..." }
-    if (-Not ($WntdMachine = $WntdPool.GetMachines()| Where-Object { $_.Name -eq $machine })) { throw "The test machine was not found, aborting..." }
+    $WntdPool = Get-ToolsHCKChildPool -PoolName $pool
+    $WntdMachine = Get-ToolsHCKMachineInPool -WntdPool $WntdPool -MachineName $machine
     if (-Not ($WntdTarget = $WntdMachine.GetTestTargets() | Where-Object { $_.Key -eq $target })) { throw "A target that matches the target's key given was not found in the specified machine, aborting..." }
     if (-Not ($Manager.GetProjectNames().Contains($project))) { throw "No project with the given name was found, aborting..." } else { $WntdProject = $Manager.GetProject($project) }
     if (-Not ($WntdPI = $WntdProject.GetProductInstances() | Where-Object { $_.OSPlatform -eq $WntdMachine.OSPlatform })) { throw "Machine pool not targeted in the project." }
@@ -957,8 +988,8 @@ function listtests {
         $inqueue = $true
     }
 
-    if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Did not find pool $pool in Root pool, aborting..." }
-    if (-Not ($WntdMachine = $WntdPool.GetMachines()| Where-Object { $_.Name -eq $machine })) { throw "The test machine was not found, aborting..." }
+    $WntdPool = Get-ToolsHCKChildPool -PoolName $pool
+    $WntdMachine = Get-ToolsHCKMachineInPool -WntdPool $WntdPool -MachineName $machine
     if (-Not ($WntdTarget = $WntdMachine.GetTestTargets() | Where-Object { $_.Key -eq $target })) { throw "A target that matches the target's key given was not found in the specified machine, aborting..." }
     if (-Not ($Manager.GetProjectNames().Contains($project))) { throw "No project with the given name was found, aborting..." } else { $WntdProject = $Manager.GetProject($project) }
     if (-Not ($WntdPI = $WntdProject.GetProductInstances() | Where-Object { $_.OSPlatform -eq $WntdMachine.OSPlatform })) { throw "Machine pool not targeted in the project." }
@@ -1115,8 +1146,8 @@ function gettestinfo {
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $machine -MissingMessage "Please provide a machine's name." -ShowUsage { Usage })) { return }
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
 
-    if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Did not find pool $pool in Root pool, aborting..." }
-    if (-Not ($WntdMachine = $WntdPool.GetMachines()| Where-Object { $_.Name -eq $machine })) { throw "The test machine was not found, aborting..." }
+    $WntdPool = Get-ToolsHCKChildPool -PoolName $pool
+    $WntdMachine = Get-ToolsHCKMachineInPool -WntdPool $WntdPool -MachineName $machine
     if (-Not ($WntdTarget = $WntdMachine.GetTestTargets() | Where-Object { $_.Key -eq $target })) { throw "A target that matches the target's key given was not found in the specified machine, aborting..." }
     if (-Not ($Manager.GetProjectNames().Contains($project))) { throw "No project with the given name was found, aborting..." } else { $WntdProject = $Manager.GetProject($project) }
     if (-Not ($WntdPI = $WntdProject.GetProductInstances() | Where-Object { $_.OSPlatform -eq $WntdMachine.OSPlatform })) { throw "Machine pool not targeted in the project." }
@@ -1221,8 +1252,8 @@ function queuetest {
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $machine -MissingMessage "Please provide a machine's name." -ShowUsage { Usage })) { return }
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
 
-    if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Did not find pool $pool in Root pool, aborting..." }
-    if (-Not ($WntdMachine = $WntdPool.GetMachines()| Where-Object { $_.Name -eq $machine })) { throw "The test machine was not found, aborting..." }
+    $WntdPool = Get-ToolsHCKChildPool -PoolName $pool
+    $WntdMachine = Get-ToolsHCKMachineInPool -WntdPool $WntdPool -MachineName $machine
     if (-Not ($WntdTarget = $WntdMachine.GetTestTargets() | Where-Object { $_.Key -eq $target })) { throw "A target that matches the target's key given was not found in the specified machine, aborting..." }
     if (-Not ($Manager.GetProjectNames().Contains($project))) { throw "No project with the given name was found, aborting..." } else { $WntdProject = $Manager.GetProject($project) }
     if (-Not ($WntdPI = $WntdProject.GetProductInstances() | Where-Object { $_.OSPlatform -eq $WntdMachine.OSPlatform })) { throw "Machine pool not targeted in the project." }
@@ -1369,8 +1400,8 @@ function applytestresultfilters {
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $machine -MissingMessage "Please provide a machine's name." -ShowUsage { Usage })) { return }
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
 
-    if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Did not find pool $pool in Root pool, aborting..." }
-    if (-Not ($WntdMachine = $WntdPool.GetMachines()| Where-Object { $_.Name -eq $machine })) { throw "The test machine was not found, aborting..." }
+    $WntdPool = Get-ToolsHCKChildPool -PoolName $pool
+    $WntdMachine = Get-ToolsHCKMachineInPool -WntdPool $WntdPool -MachineName $machine
     if (-Not ($WntdTarget = $WntdMachine.GetTestTargets() | Where-Object { $_.Key -eq $target })) { throw "A target that matches the target's key given was not found in the specified machine, aborting..." }
     if (-Not ($Manager.GetProjectNames().Contains($project))) { throw "No project with the given name was found, aborting..." } else { $WntdProject = $Manager.GetProject($project) }
     if (-Not ($WntdPI = $WntdProject.GetProductInstances() | Where-Object { $_.OSPlatform -eq $WntdMachine.OSPlatform })) { throw "Machine pool not targeted in the project." }
@@ -1454,8 +1485,8 @@ function listtestresults {
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $machine -MissingMessage "Please provide a machine's name." -ShowUsage { Usage })) { return }
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
 
-    if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Did not find pool $pool in Root pool, aborting..." }
-    if (-Not ($WntdMachine = $WntdPool.GetMachines()| Where-Object { $_.Name -eq $machine })) { throw "The test machine was not found, aborting..." }
+    $WntdPool = Get-ToolsHCKChildPool -PoolName $pool
+    $WntdMachine = Get-ToolsHCKMachineInPool -WntdPool $WntdPool -MachineName $machine
     if (-Not ($WntdTarget = $WntdMachine.GetTestTargets() | Where-Object { $_.Key -eq $target })) { throw "A target that matches the target's key given was not found in the specified machine, aborting..." }
     if (-Not ($Manager.GetProjectNames().Contains($project))) { throw "No project with the given name was found, aborting..." } else { $WntdProject = $Manager.GetProject($project) }
     if (-Not ($WntdPI = $WntdProject.GetProductInstances() | Where-Object { $_.OSPlatform -eq $WntdMachine.OSPlatform })) { throw "Machine pool not targeted in the project." }
@@ -1614,8 +1645,8 @@ function ziptestresultlogs {
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $machine -MissingMessage "Please provide a machine's name." -ShowUsage { Usage })) { return }
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $pool -MissingMessage "Please provide a pool's name." -ShowUsage { Usage })) { return }
 
-    if (-Not ($WntdPool = $RootPool.GetChildPools() | Where-Object { $_.Name -eq $pool })) { throw "Did not find pool $pool in Root pool, aborting..." }
-    if (-Not ($WntdMachine = $WntdPool.GetMachines()| Where-Object { $_.Name -eq $machine })) { throw "The test machine was not found, aborting..." }
+    $WntdPool = Get-ToolsHCKChildPool -PoolName $pool
+    $WntdMachine = Get-ToolsHCKMachineInPool -WntdPool $WntdPool -MachineName $machine
     if (-Not ($WntdTarget = $WntdMachine.GetTestTargets() | Where-Object { $_.Key -eq $target })) { throw "A target that matches the target's key given was not found in the specified machine, aborting..." }
     if (-Not ($Manager.GetProjectNames().Contains($project))) { throw "No project with the given name was found, aborting..." } else { $WntdProject = $Manager.GetProject($project) }
     if (-Not ($WntdPI = $WntdProject.GetProductInstances() | Where-Object { $_.OSPlatform -eq $WntdMachine.OSPlatform })) { throw "Machine pool not targeted in the project." }
