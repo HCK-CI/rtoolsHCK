@@ -441,7 +441,7 @@ function movemachine {
 
     $WntdFromPool = Get-ToolsHCKChildPool -PoolName $from -IfNotFound "Provided source pool's name is not valid, aborting..."
     $WntdToPool = Get-ToolsHCKChildPool -PoolName $to -IfNotFound "Provided destination pool's name is not valid, aborting..."
-    $WntdMachine = Get-ToolsHCKMachineInPool -WntdPool $WntdFromPool -MachineName $machine -IfNotFound "Provided machines's name is not valid, aborting..."
+    $WntdMachine = Get-ToolsHCKMachineInPool -WntdPool $WntdFromPool -MachineName $machine -IfNotFound "Provided machine's name is not valid, aborting..."
 
     if (-Not $json) { Write-Output "Moving machine $($WntdMachine.Name) from $($WntdFromPool.Name) to $($WntdToPool.Name) pool." }
     $WntdFromPool.MoveMachineTo($WntdMachine, $WntdToPool)
@@ -484,7 +484,7 @@ function setmachinestate {
     if (-not (Assert-ToolsHCKNonEmptyParam -Value $state -MissingMessage "Please provide a state." -ShowUsage { Usage })) { return }
 
     $WntdPool = Get-ToolsHCKChildPool -PoolName $pool -IfNotFound "Provided pool's name is not valid, aborting..."
-    $WntdMachine = Get-ToolsHCKMachineInPool -WntdPool $WntdPool -MachineName $machine -IfNotFound "Provided machines's name is not valid, aborting..."
+    $WntdMachine = Get-ToolsHCKMachineInPool -WntdPool $WntdPool -MachineName $machine -IfNotFound "Provided machine's name is not valid, aborting..."
     if (-Not ($timeout -eq -1)) { $timeout = $timeout * 1000 }
 
     if (-Not $json) { Write-Output "Setting machine $($WntdMachine.Name) to $state state..." }
@@ -496,7 +496,7 @@ function setmachinestate {
             if (-Not $WntdMachine.SetMachineStatus([Microsoft.Windows.Kits.Hardware.ObjectModel.MachineStatus]::NotReady, $timeout))  { throw "Unable to change machine state, timed out." }
         }
         default {
-            throw "Provided desired machines's sate is not valid, aborting..."
+            throw "Provided desired machine's state is not valid, aborting..."
         }
     }
 }
@@ -551,7 +551,7 @@ function listmachinetargets {
         Write-Output ""
         Write-Output "Usage:"
         Write-Output ""
-        Write-Output "listmachientargets <testmachine> <poolname> [-help]"
+        Write-Output "listmachinetargets <testmachine> <poolname> [-help]"
         Write-Output ""
         Write-Output "Any parameter in [] is optional."
         Write-Output ""
@@ -759,7 +759,7 @@ function createprojecttarget {
         Write-Output ""
         Write-Output "        help = Shows this message."
         Write-Output ""
-        Write-Output "    tagetkey = The key of the target, use listmachinetargets to get it."
+        Write-Output "    targetkey = The key of the target, use listmachinetargets to get it."
         Write-Output ""
         Write-Output " projectname = The name of the project."
         Write-Output ""
@@ -856,7 +856,7 @@ function deleteprojecttarget {
         Write-Output ""
         Write-Output "        help = Shows this message."
         Write-Output ""
-        Write-Output "    tagetkey = The key of the target, use listmachinetargets to get it."
+        Write-Output "    targetkey = The key of the target, use listmachinetargets to get it."
         Write-Output ""
         Write-Output " projectname = The name of the project."
         Write-Output ""
@@ -938,7 +938,7 @@ function listtests {
         Write-Output ""
         Write-Output "        help = Shows this message."
         Write-Output ""
-        Write-Output "    tagetkey = The key of the target, use listmachinetargets to get it."
+        Write-Output "    targetkey = The key of the target, use listmachinetargets to get it."
         Write-Output ""
         Write-Output " projectname = The name of the project."
         Write-Output ""
@@ -1131,7 +1131,7 @@ function gettestinfo {
         Write-Output ""
         Write-Output "      testid = The id of the test, use listtests action to get it."
         Write-Output ""
-        Write-Output "    tagetkey = The key of the target, use listmachinetargets to get it."
+        Write-Output "    targetkey = The key of the target, use listmachinetargets to get it."
         Write-Output ""
         Write-Output " projectname = The name of the project."
         Write-Output ""
@@ -1230,7 +1230,7 @@ function queuetest {
         Write-Output ""
         Write-Output "      testid = The id of the test, use listtests action to get it."
         Write-Output ""
-        Write-Output "    tagetkey = The key of the target, use listmachinetargets to get it."
+        Write-Output "    targetkey = The key of the target, use listmachinetargets to get it."
         Write-Output ""
         Write-Output " projectname = The name of the project."
         Write-Output ""
@@ -1239,7 +1239,7 @@ function queuetest {
         Write-Output ""
         Write-Output "    poolname = The name of the pool."
         Write-Output ""
-        Write-Output "        IPv6 = The support machines's ""SupportDevice0"" IPv6 address."
+        Write-Output "        IPv6 = The support machine's ""SupportDevice0"" IPv6 address."
         Write-Output ""
         Write-Output "  parameters = Additional parameters in JSON format '{ ParameterName1: ParameterValue, ParameterName2: ParameterValue2 }'."
         Write-Output ""
@@ -1384,7 +1384,7 @@ function applytestresultfilters {
         Write-Output ""
         Write-Output "      testid = The id of the test, use listtests action to get it."
         Write-Output ""
-        Write-Output "    tagetkey = The key of the target, use listmachinetargets to get it."
+        Write-Output "    targetkey = The key of the target, use listmachinetargets to get it."
         Write-Output ""
         Write-Output " projectname = The name of the project."
         Write-Output ""
@@ -1428,7 +1428,7 @@ function applytestresultfilters {
 
     if (-Not ($WntdTest = $WntdTests | Where-Object { $_.Id -eq $test })) { throw "Didn't find a test with the id given." }
 
-    if (-Not ($WntdTest.GetTestResults().Count -ge 1)) { throw "The test hasen't been queued, can't find test results." } else { $WntdResult = $WntdTest.GetTestResults()[$result] }
+    if (-Not ($WntdTest.GetTestResults().Count -ge 1)) { throw "The test hasn't been queued, can't find test results." } else { $WntdResult = $WntdTest.GetTestResults()[$result] }
 
     if (-Not $json) { Write-Output "Applying filters on test result..." }
 
@@ -1471,7 +1471,7 @@ function listtestresults {
         Write-Output ""
         Write-Output "      testid = The id of the test, use listtests action to get it."
         Write-Output ""
-        Write-Output "    tagetkey = The key of the target, use listmachinetargets to get it."
+        Write-Output "    targetkey = The key of the target, use listmachinetargets to get it."
         Write-Output ""
         Write-Output " projectname = The name of the project."
         Write-Output ""
@@ -1515,7 +1515,7 @@ function listtestresults {
     } else {
         $WntdPITargets | foreach { $_.GetTests() } | Where-Object { $_.Id -eq $testid } | foreach { $WntdTests.Add($_) }
         if ($WntdTests.Count -lt 1) { throw "Didn't find a test with the id given." }
-        if ($WntdTests[0].GetTestResults().Count -lt 1) { throw "The test hasen't been queued, can't find test results." }
+        if ($WntdTests[0].GetTestResults().Count -lt 1) { throw "The test hasn't been queued, can't find test results." }
     }
 
     $testresultlist = [System.Collections.Generic.List[object]]::new()
@@ -1629,7 +1629,7 @@ function ziptestresultlogs {
         Write-Output ""
         Write-Output "      testid = The id of the test, use listtests action to get it."
         Write-Output ""
-        Write-Output "    tagetkey = The key of the target, use listmachinetargets to get it."
+        Write-Output "    targetkey = The key of the target, use listmachinetargets to get it."
         Write-Output ""
         Write-Output " projectname = The name of the project."
         Write-Output ""
@@ -2039,7 +2039,7 @@ function Usage {
     Write-Output ""
     Write-Output "            gettestinfo : Gets a project target's test info."
     Write-Output ""
-    Write-Output "              queuetest : Queue's a test, use listtestresults to get the results."
+    Write-Output "              queuetest : Queues a test, use listtestresults to get the results."
     Write-Output ""
     Write-Output "    applyprojectfilters : Applies the filters on a project's test results."
     Write-Output ""
@@ -2053,7 +2053,7 @@ function Usage {
     Write-Output ""
     Write-Output "           loadplaylist : Loads a playlist for a project into HLK Studio."
     Write-Output ""
-    Write-Output "NOTE: For more infromation about every action use action's -help parameter!"
+    Write-Output "NOTE: For more information about every action use action's -help parameter!"
     Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
 }
 
