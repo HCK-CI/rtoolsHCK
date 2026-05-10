@@ -1908,9 +1908,8 @@ function createprojectpackage {
 #
 # GetTimeStamp
 function gettimestamp {
-    $DayStamp = $(get-date).ToString("dd-MM-yyyy")
-    $TimeStamp = $(get-date).ToString("hh_mm_ss")
-    return "[$DayStamp`_$TimeStamp]"
+    $now = Get-Date
+    return "[{0}_{1}]" -f $now.ToString("dd-MM-yyyy"), $now.ToString("hh_mm_ss")
 }
 #
 # SendTCPSocket
