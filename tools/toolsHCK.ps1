@@ -2084,7 +2084,7 @@ $toolsHCKlist = [System.Collections.Generic.List[string]]::new([string[]]@(
 # -------------------------------------- #
 # Trying to perform the requested action #
 # -------------------------------------- #
-$ConnectFileName = $env:WTTSTDIO + "connect.xml"
+$ConnectFileName = Join-Path -Path $env:WTTSTDIO -ChildPath "connect.xml"
 Write-Output "Opening connection file $ConnectFileName"
 $ConnectFile = [xml](Get-Content $ConnectFileName)
 
