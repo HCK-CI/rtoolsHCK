@@ -414,8 +414,9 @@ class RToolsHCK
       yield
     # We can have ECONNREFUSED error due to direct connection to
     # clients instead of proxy through studio
+    # We can have EHOSTUNREACH error due to network issues or machine rebooting
     # Safety catch this exception, the action wrapper will retry if needed
-    rescue RToolsHCKError, Errno::ECONNREFUSED => e
+    rescue RToolsHCKError, Errno::ECONNREFUSED, Errno::EHOSTUNREACH => e
       action_exception_handler(e)
     end
   end
