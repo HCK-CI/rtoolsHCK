@@ -1232,7 +1232,7 @@ function queuetest {
         Write-Output ""
         Write-Output "Usage:"
         Write-Output ""
-        Write-Output "queuetest <testid> <targetkey> <projectname> <testmachine> <poolname> [-sup <name>]"
+        Write-Output "queuetest <testid> <targetkey> <projectname> <testmachine> <poolname> [-sup <json>]"
         Write-Output "              [-IPv6 <address>] [-help] [-parameters <parameters>]"
         Write-Output ""
         Write-Output "Any parameter in [] is optional."
@@ -1254,8 +1254,10 @@ function queuetest {
         Write-Output ""
         Write-Output "  parameters = Additional parameters in JSON format '{ ParameterName1: ParameterValue, ParameterName2: ParameterValue2 }'."
         Write-Output ""
-        Write-Output "         sup = The support machine's name as registered with the HCK\HLK controller."
-        Write-Output "               NOTE: test machine should be in a READY state."
+        Write-Output "         sup = A JSON object mapping HLK role names to arrays of machine names."
+        Write-Output "               Roles not listed default to the primary test machine."
+        Write-Output "               Example: '{""MC"":[""CL2""],""SC"":[""CL3""]}'"
+        Write-Output "               NOTE: support machines should be in a READY state."
         Write-Output ""
         Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
     }
@@ -1305,20 +1307,31 @@ function queuetest {
     }
 
     if (-Not [String]::IsNullOrEmpty($sup)) {
-        if (-Not ($WntdSMachine = $WntdPool.GetMachines()| Where-Object { $_.Name -eq $sup })) { throw "The support machine was not found, aborting..." }
+        $supData = ConvertFrom-Json $sup
         $MachineSet = $WntdTest.GetMachineRole()
-        $RoleMachines = [System.Collections.Generic.List[object]]::new()
+
+        $roleAliases = @{ 'MasterClient' = 'MC'; 'StressClient' = 'SC' }
+
         foreach ($Role in $MachineSet.Roles) {
-            $RoleMachines.AddRange($Role.GetMachines())
-            $RoleMachines | foreach { $Role.RemoveMachine($_) }
-            $RoleMachines.Clear()
-            if ($Role.Name -eq "Client") {
+            $existing = [System.Collections.Generic.List[object]]::new()
+            $existing.AddRange($Role.GetMachines())
+            $existing | ForEach-Object { $Role.RemoveMachine($_) }
+
+            $machineNames = $supData.PSObject.Properties[$Role.Name]
+            if (-Not $machineNames -and $roleAliases.ContainsKey($Role.Name)) {
+                $machineNames = $supData.PSObject.Properties[$roleAliases[$Role.Name]]
+            }
+            if ($machineNames) {
+                foreach ($machineName in $machineNames.Value) {
+                    if (-Not ($sm = $WntdPool.GetMachines() | Where-Object { $_.Name -eq $machineName.Trim() })) { throw "Machine '$machineName' for role '$($Role.Name)' was not found, aborting..." }
+                    $Role.AddMachine($sm)
+                }
+            } else {
+                # Roles not listed in $supData (e.g. "Client"/"SUT") default to the primary test machine.
                 $Role.AddMachine($WntdMachine)
             }
-            if ($Role.Name -eq "Support") {
-                $Role.AddMachine($WntdSMachine)
-            }
         }
+
         $MachineSet.ApplyMachineDimensions()
         $WntdTest.QueueTest($MachineSet) | Out-Null
     } else {
