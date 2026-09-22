@@ -284,6 +284,146 @@ function Get-ToolsHCKMachineInPool {
     $wntdMachine
 }
 
+# Returns referenced file names from a driver INF.
+# Handles SourceDisksFiles, CopyFiles, and ServiceBinary.
+# Best-effort only; Include/Needs chaining is not resolved.
+function Get-ToolsHCKInfReferencedFiles {
+    param(
+        [Parameter(Mandatory)][string]$InfPath
+    )
+
+    $comparer = [System.StringComparer]::OrdinalIgnoreCase
+    $referenced = New-Object 'System.Collections.Generic.HashSet[string]' $comparer
+
+    $lines = Get-Content -LiteralPath $InfPath -ErrorAction Stop | ForEach-Object { ($_ -replace ';.*$', '').Trim() }
+
+    $sections = [ordered]@{}
+    $currentSection = $null
+    foreach ($line in $lines) {
+        if ([string]::IsNullOrEmpty($line)) { continue }
+        if ($line -match '^\[(?<name>[^\]]+)\]$') {
+            $currentSection = $Matches['name']
+            if (-not $sections.Contains($currentSection)) { $sections[$currentSection] = [System.Collections.Generic.List[string]]::new() }
+            continue
+        }
+        if ($null -ne $currentSection) { $sections[$currentSection].Add($line) }
+    }
+
+    # Build the %token% substitution map from [Strings] sections.
+    $strings = @{}
+    foreach ($sectionName in $sections.Keys) {
+        if ($sectionName -notmatch '^Strings') { continue }
+        foreach ($line in $sections[$sectionName]) {
+            if ($line -match '^(?<key>[^=]+)=\s*"?(?<value>[^"]*)"?\s*$') {
+                $key = $Matches['key'].Trim()
+                if (-not $strings.ContainsKey($key)) { $strings[$key] = $Matches['value'].Trim() }
+            }
+        }
+    }
+
+    function Expand-InfTokens([string]$text) {
+        if ([string]::IsNullOrEmpty($text)) { return $text }
+        $result = $text
+        foreach ($m in [regex]::Matches($text, '%([^%]+)%')) {
+            $tokenName = $m.Groups[1].Value
+            if ($tokenName -match '^\d+$') {
+                # Numeric tokens such as %12% are DIRIDs, not [Strings] tokens.
+                $result = $result.Replace($m.Value, '')
+            } elseif ($strings.ContainsKey($tokenName)) {
+                $result = $result.Replace($m.Value, $strings[$tokenName])
+            }
+        }
+        $result
+    }
+
+    function Get-InfFileEntryName([string]$line) {
+        # SourceDisksFiles uses "file = ..."; CopyFiles entries may use "dest,source".
+        # For rename-on-copy entries, source is the physical file in the package.
+        if ($line.Contains('=')) {
+            $name = $line.Substring(0, $line.IndexOf('='))
+        } else {
+            $parts = $line -split ','
+            $dest = $parts[0]
+            $source = if ($parts.Count -gt 1) { $parts[1] } else { '' }
+            $name = if (-not [string]::IsNullOrWhiteSpace($source)) { $source } else { $dest }
+        }
+        $name = (Expand-InfTokens $name).Trim()
+        if ([string]::IsNullOrEmpty($name)) { return $null }
+        Split-Path -Leaf $name
+    }
+
+    # 1) SourceDisksFiles sections, including decorated variants.
+    foreach ($sectionName in $sections.Keys) {
+        if ($sectionName -notmatch '^SourceDisksFiles') { continue }
+        foreach ($line in $sections[$sectionName]) {
+            $file = Get-InfFileEntryName $line
+            if ($file) { $referenced.Add($file) | Out-Null }
+        }
+    }
+
+    # 2) CopyFiles values may reference a file-list section or a file directly.
+    $visited = New-Object 'System.Collections.Generic.HashSet[string]' $comparer
+    function Resolve-InfCopyFilesTarget([string]$token) {
+        $token = (Expand-InfTokens $token).Trim().TrimStart('@')
+        if ([string]::IsNullOrEmpty($token) -or $token -eq '-') { return }
+        if (-not $visited.Add($token)) { return }
+        $targetSection = $sections[$token]
+        if ($null -ne $targetSection) {
+            foreach ($line in $targetSection) {
+                $file = Get-InfFileEntryName $line
+                if ($file) { $referenced.Add($file) | Out-Null }
+            }
+        } else {
+            $referenced.Add((Split-Path -Leaf $token)) | Out-Null
+        }
+    }
+
+    foreach ($line in $lines) {
+        if ($line -match '^CopyFiles\s*=\s*(?<value>.+)$') {
+            foreach ($token in ($Matches['value'] -split ',')) { Resolve-InfCopyFilesTarget $token }
+        }
+    }
+
+    # 3) ServiceBinary= values, e.g. "%12%\netkvm.sys".
+    foreach ($line in $lines) {
+        if ($line -match '^ServiceBinary\s*=\s*(?<value>.+)$') {
+            $value = ((Expand-InfTokens $Matches['value']) -split ',')[0].Trim()
+            if ($value) { $referenced.Add((Split-Path -Leaf $value)) | Out-Null }
+        }
+    }
+
+    return $referenced
+}
+
+# Returns unreferenced files directly under $DriverPath; INF and CAT files are always kept.
+# If there is not exactly one INF, skip filtering rather than guess.
+function Get-ToolsHCKUnreferencedDriverFiles {
+    param(
+        [Parameter(Mandatory)][string]$DriverPath
+    )
+
+    $infFiles = @(Get-ChildItem -Path $DriverPath -Filter *.inf -File)
+    if ($infFiles.Count -ne 1) {
+        Write-Warning "Expected exactly one .inf in '$DriverPath', found $($infFiles.Count); skipping unreferenced-file filtering."
+        return @()
+    }
+    $inf = $infFiles[0]
+
+    $referenced = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+
+    foreach ($file in @(Get-ToolsHCKInfReferencedFiles -InfPath $inf.FullName)) {
+        $referenced.Add($file) | Out-Null
+    }
+
+    $referenced.Add($inf.Name) | Out-Null
+
+    foreach ($cat in @(Get-ChildItem -Path $DriverPath -Filter *.cat -File)) {
+        $referenced.Add($cat.Name) | Out-Null
+    }
+
+    @(Get-ChildItem -Path $DriverPath -File) | Where-Object { -not $referenced.Contains($_.Name) }
+}
+
 # ------------------------------------------------------------ #
 # Functions, one for each action the script is able to perform #
 # ------------------------------------------------------------ #
@@ -1861,6 +2001,22 @@ function createprojectpackage {
                 New-Item -ItemType Directory -Path $symbolPath | Out-Null
                 Get-ChildItem -Path $driver -Filter *.pdb -Recurse | ForEach-Object { Move-Item -Path $_.FullName -Destination $symbolPath -Force }
 
+                # Move unreferenced files out of the driver directory so AddDriver does not package them.
+                $unreferencedFiles = @(Get-ToolsHCKUnreferencedDriverFiles -DriverPath $driver)
+                if ($unreferencedFiles.Count -gt 0) {
+                    $excludedPath = Join-Path ([System.IO.Path]::GetTempPath()) ([Guid]::NewGuid().ToString())
+                    New-Item -ItemType Directory -Path $excludedPath | Out-Null
+                    foreach ($unreferencedFile in $unreferencedFiles) {
+                        Move-Item -Path $unreferencedFile.FullName -Destination $excludedPath -Force
+                        $msg = "Excluding '$($unreferencedFile.Name)' from driver package: not referenced by any .inf"
+                        if (-Not $json) {
+                            Write-Output $msg
+                        } else {
+                            $actionMessages += $msg
+                        }
+                    }
+                }
+
                 # Remove driver signatures before packaging to avoid embedded company signatures (only when -removeDriverSignatures)
                 if ($removedriversignatures) {
                     Get-ChildItem -Path $driver -Include *.sys, *.dll, *.exe -Recurse | ForEach-Object {
@@ -1882,8 +2038,20 @@ function createprojectpackage {
                     }
                 }
 
-                $AddDriverResult = $PackageWriter.AddDriver($driver, $symbolPath, $TargetList, $LocaleList, [ref]$ErrorMessages, [ref]$WarningMessages)
+                # Use the newer 8-argument overload when available to detect remaining unreferenced files.
+                # Otherwise keep the classic overload for backward compatibility.
+                $unreferencedFilePresent = $false
+                [string]$unreferencedFileLogPath = $null
+                $has8ArgAddDriverOverload = [bool]($PackageWriter.GetType().GetMethods() |
+                    Where-Object { $_.Name -eq 'AddDriver' -and $_.GetParameters().Count -eq 8 })
+                if ($has8ArgAddDriverOverload) {
+                    $AddDriverResult = $PackageWriter.AddDriver($driver, $symbolPath, $TargetList, $LocaleList, [ref]$ErrorMessages, [ref]$WarningMessages, [ref]$unreferencedFilePresent, [ref]$unreferencedFileLogPath)
+                } else {
+                    $AddDriverResult = $PackageWriter.AddDriver($driver, $symbolPath, $TargetList, $LocaleList, [ref]$ErrorMessages, [ref]$WarningMessages)
+                }
 
+                # If HLK still finds unreferenced files after filtering, mark the result as an error.
+                # Packaging continues so the issue is visible in the result and logs.
                 if (-Not $json) {
                     if ($AddDriverResult) {
                         Write-Output "Driver added to package from $driver"
@@ -1893,6 +2061,10 @@ function createprojectpackage {
                         foreach ($err in $ErrorMessages) { Write-Output "  Error: $err" }
                         foreach ($warn in $WarningMessages) { Write-Output "  Warning: $warn" }
                     }
+                    if ($unreferencedFilePresent) {
+                        $iserror = $true
+                        Write-Output "Error: HLK Studio's native check found unreferenced file(s) in '$driver' after filtering; see $unreferencedFileLogPath"
+                    }
                 } else {
                     if ($AddDriverResult) {
                         $actionMessages += "Driver added to package from $driver"
@@ -1901,6 +2073,10 @@ function createprojectpackage {
                         $actionMessages += "Warning: Driver signability check did not pass"
                         foreach ($err in $ErrorMessages) { $actionMessages += "Error: $err" }
                         foreach ($warn in $WarningMessages) { $actionMessages += "Warning: $warn" }
+                    }
+                    if ($unreferencedFilePresent) {
+                        $iserror = $true
+                        $actionMessages += "Error: HLK Studio's native check found unreferenced file(s) in '$driver' after filtering; see $unreferencedFileLogPath"
                     }
                 }
             }
