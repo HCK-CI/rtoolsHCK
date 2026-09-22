@@ -1836,7 +1836,7 @@ function createprojectpackage {
                 $TargetList = New-Object 'System.Collections.ObjectModel.ReadOnlyCollection[Microsoft.Windows.Kits.Hardware.ObjectModel.Target]' (,$TargetArray)
 
                 # Create ReadOnlyCollection<String> for locales
-                $LocaleArray = [string[]]@("en-US")
+                $LocaleArray = [string[]]@("English")
                 $LocaleList = New-Object 'System.Collections.ObjectModel.ReadOnlyCollection[string]' (,$LocaleArray)
 
                 # Create StringCollection instances for out parameters
