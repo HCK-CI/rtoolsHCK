@@ -1930,6 +1930,211 @@ function createprojectpackage {
     }
 }
 #
+# MergeHlkxPackages
+function mergehlkxpackages {
+    [CmdletBinding(PositionalBinding=$false)]
+    param([Switch]$help, [String]$output, [Parameter(ValueFromRemainingArguments=$true)][String[]]$packages)
+
+    function Usage {
+        Write-Output "mergehlkxpackages:"
+        Write-Output ""
+        Write-Output "A script that merges two or more HLKX packages into a single package and saves"
+        Write-Output "it to a file at <output> if used, if not to %TEMP%\prometheus_packages\..."
+        Write-Output "These tasks are done by using the HCK\HLK API provided with the Windows HCK\HLK Studio."
+        Write-Output ""
+        Write-Output "Usage:"
+        Write-Output ""
+        Write-Output "mergehlkxpackages <package1> <package2> [<package3> ...] [-output <path>] [-help]"
+        Write-Output ""
+        Write-Output "Any parameter in [] is optional."
+        Write-Output ""
+        Write-Output "        help = Shows this message."
+        Write-Output ""
+        Write-Output "    packageN = Path to an input HLKX file. At least 2 are required."
+        Write-Output ""
+        Write-Output "      output = The path to the output package file."
+        Write-Output ""
+        Write-Output "With [json], output is JSON with name, projectpackagepath, iserror, and messages."
+        Write-Output ""
+        Write-Output "NOTE: Windows HCK\HLK Studio should be installed on the machine running the script!"
+    }
+
+    if (Test-ToolsHCKHelpExit -Help:$help -ShowUsage { Usage }) { return }
+
+    if ($packages.Count -lt 2) {
+        if (-Not $json) {
+            Write-Output "WARNING: At least 2 packages are required for merge."
+            Usage
+            return
+        }
+        throw "At least 2 packages are required for merge."
+    }
+
+    if (-Not [String]::IsNullOrEmpty($output)) {
+        $PackagePath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($output)
+    } else {
+        if (-Not (Test-Path ($env:TEMP + "\prometheus_packages\"))) {
+            New-Item ($env:TEMP + "\prometheus_packages\") -ItemType Directory | Out-Null
+        }
+        $PackagePath = $env:TEMP + "\prometheus_packages\" + $(Get-Date).ToString("dd-MM-yyyy") + "_" + $(Get-Date).ToString("hh_mm_ss") + "_merged.hlkx"
+    }
+
+    # Merge() only copies test results; drivers/supplemental files must be
+    # extracted and re-added explicitly.
+    function Add-ExtractedDrivers($PackageWriter, $Manager, $Project, [ref]$ActionMessagesRef, [ref]$IserrorRef, [ref]$TmpDirsRef) {
+        $tmpDir = Join-Path $env:TEMP ([Guid]::NewGuid().ToString())
+        $TmpDirsRef.Value.Add($tmpDir)
+        try {
+            New-Item -ItemType Directory -Path $tmpDir | Out-Null
+            $Manager.ExtractDriverPackages($tmpDir)
+
+            $driversRoot = Join-Path $tmpDir "drivers"
+            $symbolsRoot = Join-Path $tmpDir "symbols"
+            if (-not (Test-Path $driversRoot)) { return }
+
+            $driverDirs = @(Get-ChildItem -Path $driversRoot -Directory)
+            if ($driverDirs.Count -eq 0) { return }
+
+            $AllTargets = New-Object System.Collections.Generic.List[Microsoft.Windows.Kits.Hardware.ObjectModel.Target]
+            foreach ($Pi in $Project.GetProductInstances()) {
+                foreach ($Target in $Pi.GetTargets()) { $AllTargets.Add($Target) }
+            }
+            if ($AllTargets.Count -eq 0) { return }
+            $TargetArray = [Microsoft.Windows.Kits.Hardware.ObjectModel.Target[]]$AllTargets.ToArray()
+            $TargetList = New-Object 'System.Collections.ObjectModel.ReadOnlyCollection[Microsoft.Windows.Kits.Hardware.ObjectModel.Target]' (,$TargetArray)
+
+            $LocaleArray = [string[]]@("en-US")
+            $LocaleList = New-Object 'System.Collections.ObjectModel.ReadOnlyCollection[string]' (,$LocaleArray)
+
+            if (-not (Test-Path $symbolsRoot)) {
+                New-Item -ItemType Directory -Path $symbolsRoot | Out-Null
+            }
+
+            foreach ($driverDir in $driverDirs) {
+                $ErrorMessages = New-Object System.Collections.Specialized.StringCollection
+                $WarningMessages = New-Object System.Collections.Specialized.StringCollection
+                $AddDriverResult = $PackageWriter.AddDriver($driverDir.FullName, $symbolsRoot, $TargetList, $LocaleList, [ref]$ErrorMessages, [ref]$WarningMessages)
+
+                if (-Not $json) {
+                    if ($AddDriverResult) {
+                        Write-Output "Driver re-added from $($driverDir.FullName)"
+                    } else {
+                        Write-Output "Warning: driver signability check did not pass for $($driverDir.FullName)"
+                        foreach ($err in $ErrorMessages) { Write-Output "  Error: $err" }
+                        foreach ($warn in $WarningMessages) { Write-Output "  Warning: $warn" }
+                    }
+                } else {
+                    if ($AddDriverResult) {
+                        $ActionMessagesRef.Value += "Driver re-added from $($driverDir.FullName)"
+                    } else {
+                        $ActionMessagesRef.Value += "Warning: driver signability check did not pass for $($driverDir.FullName)"
+                        foreach ($err in $ErrorMessages) { $ActionMessagesRef.Value += "Error: $err" }
+                        foreach ($warn in $WarningMessages) { $ActionMessagesRef.Value += "Warning: $warn" }
+                    }
+                }
+                if (-not $AddDriverResult) { $IserrorRef.Value = $true }
+            }
+        } catch {
+            throw "Add-ExtractedDrivers: $($_.Exception.Message)"
+        }
+    }
+
+    function Add-ExtractedSupplemental($PackageWriter, $Manager, [ref]$ActionMessagesRef, [ref]$TmpDirsRef) {
+        $tmpDir = Join-Path $env:TEMP ([Guid]::NewGuid().ToString())
+        $TmpDirsRef.Value.Add($tmpDir)
+        try {
+            New-Item -ItemType Directory -Path $tmpDir | Out-Null
+            $Manager.ExtractSupplementalFiles($tmpDir)
+
+            if ((Get-ChildItem -Path $tmpDir | Measure-Object).Count -gt 0) {
+                $PackageWriter.AddSupplementalFiles($tmpDir)
+                if (-Not $json) {
+                    Write-Output "Supplemental files re-added"
+                } else {
+                    $ActionMessagesRef.Value += "Supplemental files re-added"
+                }
+            }
+        } catch {
+            throw "Add-ExtractedSupplemental: $($_.Exception.Message)"
+        }
+    }
+
+    $actionMessages = @()
+    $iserror = $false
+    $managers = [System.Collections.Generic.List[object]]::new()
+    $tmpDirs = [System.Collections.Generic.List[string]]::new()
+
+    try {
+        try {
+            $BaseManager = New-Object Microsoft.Windows.Kits.Hardware.ObjectModel.Submission.PackageManager($packages[0])
+            $managers.Add($BaseManager)
+            $BaseProjectName = $BaseManager.GetProjectNames() | Select-Object -First 1
+            $BaseProject = $BaseManager.GetProject($BaseProjectName)
+            $PackageWriter = New-Object Microsoft.Windows.Kits.Hardware.ObjectModel.Submission.PackageWriter($BaseProject)
+        } catch {
+            throw "open_base($($packages[0])): $($_.Exception.Message)"
+        }
+
+        # Re-add the base package's own drivers
+        Add-ExtractedDrivers $PackageWriter $BaseManager $BaseProject ([ref]$actionMessages) ([ref]$iserror) ([ref]$tmpDirs)
+        Add-ExtractedSupplemental $PackageWriter $BaseManager ([ref]$actionMessages) ([ref]$tmpDirs)
+
+        for ($i = 1; $i -lt $packages.Count; $i++) {
+            try {
+                $SrcManager = New-Object Microsoft.Windows.Kits.Hardware.ObjectModel.Submission.PackageManager($packages[$i])
+                $managers.Add($SrcManager)
+                $SrcProjectName = $SrcManager.GetProjectNames() | Select-Object -First 1
+                $SrcProject = $SrcManager.GetProject($SrcProjectName)
+            } catch {
+                throw "open_src_$($i)($($packages[$i])): $($_.Exception.Message)"
+            }
+
+            try {
+                $MergeErrors = New-Object System.Collections.Specialized.StringCollection
+                $MergeResult = $PackageWriter.Merge($SrcProject, [ref]$MergeErrors)
+            } catch {
+                throw "merge_$($i): $($_.Exception.Message)"
+            }
+
+            if (-not $MergeResult) {
+                $iserror = $true
+                foreach ($err in $MergeErrors) {
+                    if (-Not $json) {
+                        Write-Output "Warning: $err"
+                    } else {
+                        $actionMessages += "Warning: $err"
+                    }
+                }
+            }
+
+            Add-ExtractedDrivers $PackageWriter $SrcManager $SrcProject ([ref]$actionMessages) ([ref]$iserror) ([ref]$tmpDirs)
+            Add-ExtractedSupplemental $PackageWriter $SrcManager ([ref]$actionMessages) ([ref]$tmpDirs)
+        }
+
+        try {
+            $PackageWriter.Save($PackagePath)
+        } catch {
+            throw "save($($PackagePath)): $($_.Exception.Message)"
+        }
+    } finally {
+        if ($null -ne $PackageWriter) {
+            try { $PackageWriter.Dispose() } catch {}
+        }
+        foreach ($mgr in $managers) {
+            try { $mgr.Dispose() } catch {}
+        }
+        foreach ($dir in $tmpDirs) {
+            Remove-Item -Path $dir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    if (-Not $json) {
+        Write-Output "Packaged to $($PackagePath)..."
+    } else {
+        @(New-ProjectPackage "merged" $PackagePath $iserror $actionMessages) | ConvertTo-Json -Compress
+    }
+}
+#
 # GetTimeStamp
 function gettimestamp {
     $now = Get-Date
@@ -2046,7 +2251,8 @@ $toolsHCKlist = [System.Collections.Generic.List[string]]::new([string[]]@(
     "listtestresults",
     "ziptestresultlogs",
     "createprojectpackage",
-    "loadplaylist"
+    "loadplaylist",
+    "mergehlkxpackages"
 ))
 
 # -------------------------------------- #

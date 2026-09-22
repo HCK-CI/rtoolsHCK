@@ -1114,6 +1114,30 @@ class RToolsHCK
 
   # == Description
   #
+  # Merges two or more HLKX packages into a single package using the HLK API.
+  # The source packages must already be present on the Studio VM (upload them
+  # first with +upload_to_studio+).
+  #
+  # == Params:
+  #
+  # +packages+::     Array of remote paths to the input HLKX files on Studio
+  # +output+::       Remote path for the output HLKX file (can be nil; a
+  #                  default temp path will be used)
+  def merge_hlkx_packages(packages, output = nil)
+    handle_action_exceptions(__method__) do
+      raise 'packages must be an Array with at least 2 elements' unless packages.is_a?(Array) && packages.size >= 2
+
+      cmd_line = ['mergehlkxpackages']
+      cmd_line << 'json' if @json
+      cmd_line << "-output '#{output}'" unless output.nil?
+      packages.each { |p| cmd_line << "'#{p}'" }
+
+      handle_project_package(@toolshck_ether.cmd(cmd_line.join(' ')))
+    end
+  end
+
+  # == Description
+  #
   # Gets a machine's ip address.
   #
   # == Params:
